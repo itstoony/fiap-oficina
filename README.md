@@ -42,12 +42,12 @@ Monolito em camadas com organização interna por **Bounded Context** (DDD). Cad
 
 ```
 br.com.fiap.oficina/
-├── atendimento/       ← Clientes e Veículos
-├── execucao/          ← Ordens de Serviço (a implementar)
-├── estoque/           ← Peças e Estoque (a implementar)
-├── administracao/     ← Catálogo e Relatórios (a implementar)
+├── atendimento/       ← Clientes e Veículos ✓
+├── execucao/          ← Ordens de Serviço ✓
+├── estoque/           ← Peças e Estoque (stub de integração) ✓
+├── administracao/     ← Catálogo de Serviços (stub) ✓
 ├── seguranca/         ← JWT e Autenticação (a implementar)
-└── shared/            ← Exceções globais
+└── shared/            ← Exceções globais ✓
 ```
 
 ---
@@ -132,6 +132,79 @@ DELETE /api/admin/veiculos/{id}
 
 ---
 
+### Bounded Context: Execução de Serviços
+
+**Máquina de estados do StatusOS:**
+
+```
+RECEBIDA → EM_DIAGNOSTICO → AGUARDANDO_APROVACAO → EM_EXECUCAO → FINALIZADA → ENTREGUE
+                                                  ↘
+                                               CANCELADA
+```
+
+Transições são unidirecionais. Qualquer tentativa de transição inválida retorna HTTP 422.
+
+**Aggregate e Entidades:**
+
+| Classe | Descrição |
+|---|---|
+| `OrdemDeServico` | Aggregate Root. Controla todo o ciclo de vida da OS |
+| `ItemServico` | Serviço do catálogo vinculado a uma OS (quantidade + preço capturado no momento) |
+| `ItemPeca` | Peça vinculada a uma OS (quantidade + preço capturado no momento) |
+| `StatusOS` | Enum com validação de transição via `validarTransicaoPara()` |
+
+**Regras de negócio aplicadas:**
+- Número gerado automaticamente no formato `OS-{ano}-{sequencial 5 dígitos}` (ex: `OS-2026-00001`)
+- `valorTotal` = Σ(quantidade × precoUnitario) para serviços + peças, recalculado automaticamente
+- `dataInicioExecucao` registrada ao transicionar para `EM_EXECUCAO`
+- `dataFimExecucao` registrada ao transicionar para `FINALIZADA`
+- Ao iniciar execução: peças reservadas são convertidas em baixas definitivas via `EstoqueService`
+- Ao cancelar: todas as reservas de peças são liberadas via `EstoqueService`
+- Edição de itens bloqueada quando OS está em `EM_EXECUCAO`, `FINALIZADA`, `ENTREGUE` ou `CANCELADA`
+- Reserva de estoque ao adicionar peça: verifica disponibilidade (`qtdEstoque - qtdReservada >= qtdSolicitada`)
+
+**Integração com Estoque (EstoqueService):**
+
+| Operação | Quando |
+|---|---|
+| `verificarDisponibilidadeEReservar` | Ao adicionar peça à OS |
+| `liberarReserva` | Ao remover peça da OS ou cancelar a OS |
+| `baixarEstoque` | Ao iniciar execução (aprovação) — converte reserva em baixa definitiva |
+
+**Endpoints admin** (exigirão JWT após implementação da segurança):
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| `POST` | `/api/admin/ordens` | Abrir nova OS |
+| `GET` | `/api/admin/ordens` | Listar todas as OSs |
+| `GET` | `/api/admin/ordens/{id}` | Buscar OS por ID |
+| `POST` | `/api/admin/ordens/{id}/servicos` | Adicionar serviço à OS |
+| `DELETE` | `/api/admin/ordens/{id}/servicos/{itemId}` | Remover serviço da OS |
+| `POST` | `/api/admin/ordens/{id}/pecas` | Adicionar peça à OS (reserva estoque) |
+| `DELETE` | `/api/admin/ordens/{id}/pecas/{itemId}` | Remover peça da OS (libera reserva) |
+| `POST` | `/api/admin/ordens/{id}/iniciar-diagnostico` | Transição RECEBIDA → EM_DIAGNOSTICO |
+| `POST` | `/api/admin/ordens/{id}/enviar-orcamento` | Transição EM_DIAGNOSTICO → AGUARDANDO_APROVACAO |
+| `POST` | `/api/admin/ordens/{id}/iniciar-execucao` | Transição AGUARDANDO_APROVACAO → EM_EXECUCAO |
+| `POST` | `/api/admin/ordens/{id}/finalizar` | Transição EM_EXECUCAO → FINALIZADA |
+| `POST` | `/api/admin/ordens/{id}/entregar` | Transição FINALIZADA → ENTREGUE |
+| `POST` | `/api/admin/ordens/{id}/cancelar` | Cancelar OS (antes de EM_EXECUCAO) |
+
+**Endpoints públicos** (sem autenticação):
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| `GET` | `/api/public/ordens/{numero}/status` | Consultar status da OS por número |
+| `POST` | `/api/public/ordens/{numero}/aprovar` | Cliente aprova o orçamento |
+| `POST` | `/api/public/ordens/{numero}/recusar` | Cliente recusa o orçamento |
+
+**Testes:**
+- 14 testes unitários — `StatusOSTest` (todas as transições válidas e inválidas)
+- 14 testes unitários — `OrdemDeServicoServiceTest`
+- 8 testes de integração MockMvc — `OrdemDeServicoAdminControllerTest`
+- 5 testes de integração MockMvc — `OrdemDeServicoPublicControllerTest`
+
+---
+
 ## O que será implementado
 
 ### Bounded Context: Segurança (JWT)
@@ -141,22 +214,6 @@ Autenticação e autorização de todos os endpoints `/api/admin/**`.
 - `POST /api/auth/login` — retorna token JWT
 - Filtro JWT validando `Authorization: Bearer <token>`
 - Endpoints públicos: `/api/public/**`, `/swagger-ui.html`, `/api-docs/**`
-
-### Bounded Context: Execução de Serviços
-
-Ciclo de vida completo da Ordem de Serviço com máquina de estados:
-
-```
-RECEBIDA → EM_DIAGNOSTICO → AGUARDANDO_APROVACAO → EM_EXECUCAO → FINALIZADA → ENTREGUE
-                                                  ↘ CANCELADA
-```
-
-- Abertura de OS com vínculo a cliente e veículo
-- Adição de serviços e peças com cálculo automático do orçamento
-- Transições de status via endpoints admin
-- Aprovação/recusa pelo cliente via endpoint **público** (sem JWT)
-- Consulta pública de status da OS por número
-- Integração com Estoque ao iniciar execução (converte reservas em baixas)
 
 ### Bounded Context: Estoque e Insumos
 
@@ -306,6 +363,32 @@ curl -X POST http://localhost:8080/api/admin/veiculos \
   }'
 ```
 
+### Ordens de Serviço
+
+**Exemplo — abrir OS:**
+
+```bash
+curl -X POST http://localhost:8080/api/admin/ordens \
+  -H "Content-Type: application/json" \
+  -d '{
+    "clienteId": "<uuid-do-cliente>",
+    "veiculoId": "<uuid-do-veiculo>",
+    "observacoes": "Veículo com barulho no motor"
+  }'
+```
+
+**Exemplo — consultar status (público):**
+
+```bash
+curl http://localhost:8080/api/public/ordens/OS-2026-00001/status
+```
+
+**Exemplo — cliente aprovar orçamento (público):**
+
+```bash
+curl -X POST http://localhost:8080/api/public/ordens/OS-2026-00001/aprovar
+```
+
 ### Formato de erros
 
 Todos os erros retornam JSON padronizado:
@@ -359,3 +442,18 @@ http://localhost:8080/swagger-ui.html
 O relatório de cobertura é gerado em `target/site/jacoco/index.html`.
 
 Cobertura mínima configurada: **80%** nas classes de domínio (excluindo DTOs, configs e exceptions).
+
+### Suíte atual de testes
+
+| Contexto | Classe de Teste | Testes |
+|---|---|---|
+| Atendimento | `ClienteServiceTest` | 12 |
+| Atendimento | `VeiculoServiceTest` | 9 |
+| Atendimento | `ClienteControllerTest` | 10 |
+| Atendimento | `VeiculoControllerTest` | 11 |
+| Execução | `StatusOSTest` | 14 |
+| Execução | `OrdemDeServicoServiceTest` | 14 |
+| Execução | `OrdemDeServicoAdminControllerTest` | 8 |
+| Execução | `OrdemDeServicoPublicControllerTest` | 5 |
+| Integração | `OficinaApplicationTests` | 1 |
+| **Total** | | **84** |
