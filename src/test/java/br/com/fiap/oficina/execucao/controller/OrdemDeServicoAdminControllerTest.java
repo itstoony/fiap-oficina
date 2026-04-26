@@ -1,0 +1,129 @@
+package br.com.fiap.oficina.execucao.controller;
+
+import br.com.fiap.oficina.execucao.service.OrdemDeServicoService;
+import br.com.fiap.oficina.execucao.service.dto.OrdemDeServicoDTO;
+import br.com.fiap.oficina.seguranca.config.SecurityConfig;
+import br.com.fiap.oficina.shared.exception.RecursoNaoEncontradoException;
+import br.com.fiap.oficina.shared.exception.RegraDeNegocioException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@WebMvcTest(OrdemDeServicoAdminController.class)
+@Import(SecurityConfig.class)
+class OrdemDeServicoAdminControllerTest {
+
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
+    @MockitoBean private OrdemDeServicoService service;
+
+    @Test
+    void criar_comDadosValidos_deveRetornarCreated() throws Exception {
+        var request = new OrdemDeServicoDTO.CriarRequest(UUID.randomUUID(), UUID.randomUUID(), null, null);
+        when(service.criar(any())).thenReturn(criarResponse("RECEBIDA"));
+
+        mockMvc.perform(post("/api/admin/ordens")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("RECEBIDA"))
+                .andExpect(jsonPath("$.numero").value("OS-2026-00001"));
+    }
+
+    @Test
+    void criar_semClienteId_deveRetornarBadRequest() throws Exception {
+        var body = "{\"veiculoId\": \"" + UUID.randomUUID() + "\"}";
+
+        mockMvc.perform(post("/api/admin/ordens")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void listar_deveRetornarListaDeOrdens() throws Exception {
+        when(service.listar()).thenReturn(List.of(criarResponse("RECEBIDA"), criarResponse("EM_DIAGNOSTICO")));
+
+        mockMvc.perform(get("/api/admin/ordens"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
+    void buscarPorId_osExistente_deveRetornarOk() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(service.buscarPorId(id)).thenReturn(criarResponse("RECEBIDA"));
+
+        mockMvc.perform(get("/api/admin/ordens/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.numero").value("OS-2026-00001"));
+    }
+
+    @Test
+    void buscarPorId_osInexistente_deveRetornarNotFound() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(service.buscarPorId(id)).thenThrow(new RecursoNaoEncontradoException("OS não encontrada"));
+
+        mockMvc.perform(get("/api/admin/ordens/{id}", id))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void iniciarDiagnostico_transicaoValida_deveRetornarOk() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(service.iniciarDiagnostico(id)).thenReturn(criarResponse("EM_DIAGNOSTICO"));
+
+        mockMvc.perform(post("/api/admin/ordens/{id}/iniciar-diagnostico", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("EM_DIAGNOSTICO"));
+    }
+
+    @Test
+    void iniciarDiagnostico_transicaoInvalida_deveRetornarUnprocessableEntity() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(service.iniciarDiagnostico(id))
+                .thenThrow(new RegraDeNegocioException("Transição não permitida"));
+
+        mockMvc.perform(post("/api/admin/ordens/{id}/iniciar-diagnostico", id))
+                .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    void cancelar_osExistente_deveRetornarOk() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(service.cancelar(id)).thenReturn(criarResponse("CANCELADA"));
+
+        mockMvc.perform(post("/api/admin/ordens/{id}/cancelar", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELADA"));
+    }
+
+    private OrdemDeServicoDTO.Response criarResponse(String status) {
+        return new OrdemDeServicoDTO.Response(
+                UUID.randomUUID(), "OS-2026-00001", status,
+                UUID.randomUUID(), "João Silva",
+                UUID.randomUUID(), "ABC1234",
+                null, null,
+                BigDecimal.ZERO, null,
+                List.of(), List.of(),
+                LocalDateTime.now(), null, null,
+                LocalDateTime.now(), LocalDateTime.now()
+        );
+    }
+}
