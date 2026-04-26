@@ -131,15 +131,29 @@ class OrdemDeServicoServiceTest {
     }
 
     @Test
-    void iniciarExecucao_statusAguardandoAprovacao_deveMudarParaEmExecucao() {
-        OrdemDeServico os = criarOS(StatusOS.AGUARDANDO_APROVACAO);
+    void iniciarExecucao_statusAprovado_deveMudarParaEmExecucaoEAtribuirAtendente() {
+        OrdemDeServico os = criarOS(StatusOS.APROVADO);
+        Atendente atendente = Atendente.builder().id(UUID.randomUUID()).nome("Carlos").email("carlos@oficina.com").telefone("11999990001").build();
         when(repository.findById(os.getId())).thenReturn(Optional.of(os));
+        when(atendenteRepository.findById(atendente.getId())).thenReturn(Optional.of(atendente));
         when(repository.save(any())).thenReturn(os);
 
-        var response = service.iniciarExecucao(os.getId());
+        var response = service.iniciarExecucao(os.getId(), new OrdemDeServicoDTO.IniciarExecucaoRequest(atendente.getId()));
 
         assertThat(response.status()).isEqualTo("EM_EXECUCAO");
+        assertThat(os.getAtendente()).isEqualTo(atendente);
         assertThat(os.getDataInicioExecucao()).isNotNull();
+    }
+
+    @Test
+    void iniciarExecucao_atendenteInexistente_deveLancarExcecao() {
+        OrdemDeServico os = criarOS(StatusOS.APROVADO);
+        UUID atendenteId = UUID.randomUUID();
+        when(repository.findById(os.getId())).thenReturn(Optional.of(os));
+        when(atendenteRepository.findById(atendenteId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.iniciarExecucao(os.getId(), new OrdemDeServicoDTO.IniciarExecucaoRequest(atendenteId)))
+                .isInstanceOf(RecursoNaoEncontradoException.class);
     }
 
     @Test
@@ -210,14 +224,14 @@ class OrdemDeServicoServiceTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void aprovar_statusAguardandoAprovacao_deveMudarParaEmExecucao() {
+    void aprovar_statusAguardandoAprovacao_deveMudarParaAprovado() {
         OrdemDeServico os = criarOS(StatusOS.AGUARDANDO_APROVACAO);
         when(repository.findByNumero(os.getNumero())).thenReturn(Optional.of(os));
         when(repository.save(any())).thenReturn(os);
 
         var response = service.aprovar(os.getNumero());
 
-        assertThat(response.status()).isEqualTo("EM_EXECUCAO");
+        assertThat(response.status()).isEqualTo("APROVADO");
     }
 
     @Test

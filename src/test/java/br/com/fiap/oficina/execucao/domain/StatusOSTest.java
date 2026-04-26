@@ -46,8 +46,8 @@ class StatusOSTest {
     }
 
     @Test
-    void aguardandoAprovacao_podeTransicionarParaEmExecucao() {
-        assertThatCode(() -> StatusOS.AGUARDANDO_APROVACAO.validarTransicaoPara(StatusOS.EM_EXECUCAO))
+    void aguardandoAprovacao_podeTransicionarParaAprovado() {
+        assertThatCode(() -> StatusOS.AGUARDANDO_APROVACAO.validarTransicaoPara(StatusOS.APROVADO))
                 .doesNotThrowAnyException();
     }
 
@@ -58,8 +58,32 @@ class StatusOSTest {
     }
 
     @Test
+    void aguardandoAprovacao_naoPodeTransicionarDiretoParaEmExecucao() {
+        assertThatThrownBy(() -> StatusOS.AGUARDANDO_APROVACAO.validarTransicaoPara(StatusOS.EM_EXECUCAO))
+                .isInstanceOf(RegraDeNegocioException.class);
+    }
+
+    @Test
     void aguardandoAprovacao_naoPodeRetrocederParaEmDiagnostico() {
         assertThatThrownBy(() -> StatusOS.AGUARDANDO_APROVACAO.validarTransicaoPara(StatusOS.EM_DIAGNOSTICO))
+                .isInstanceOf(RegraDeNegocioException.class);
+    }
+
+    @Test
+    void aprovado_podeTransicionarParaEmExecucao() {
+        assertThatCode(() -> StatusOS.APROVADO.validarTransicaoPara(StatusOS.EM_EXECUCAO))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void aprovado_podeTransicionarParaCancelada() {
+        assertThatCode(() -> StatusOS.APROVADO.validarTransicaoPara(StatusOS.CANCELADA))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void aprovado_naoPodeRetrocederParaAguardandoAprovacao() {
+        assertThatThrownBy(() -> StatusOS.APROVADO.validarTransicaoPara(StatusOS.AGUARDANDO_APROVACAO))
                 .isInstanceOf(RegraDeNegocioException.class);
     }
 

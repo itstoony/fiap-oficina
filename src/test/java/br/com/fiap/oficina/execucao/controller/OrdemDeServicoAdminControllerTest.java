@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -107,6 +108,30 @@ class OrdemDeServicoAdminControllerTest {
 
         mockMvc.perform(post("/api/admin/ordens/{id}/iniciar-diagnostico", id))
                 .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    void iniciarExecucao_comAtendente_deveRetornarOk() throws Exception {
+        UUID id = UUID.randomUUID();
+        UUID atendenteId = UUID.randomUUID();
+        var body = "{\"atendenteId\": \"" + atendenteId + "\"}";
+        when(service.iniciarExecucao(eq(id), any())).thenReturn(criarResponse("EM_EXECUCAO"));
+
+        mockMvc.perform(post("/api/admin/ordens/{id}/iniciar-execucao", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("EM_EXECUCAO"));
+    }
+
+    @Test
+    void iniciarExecucao_semAtendente_deveRetornarBadRequest() throws Exception {
+        UUID id = UUID.randomUUID();
+
+        mockMvc.perform(post("/api/admin/ordens/{id}/iniciar-execucao", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
