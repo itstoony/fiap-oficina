@@ -22,6 +22,12 @@ public enum StatusOS {
     AGUARDANDO_APROVACAO {
         @Override
         public Set<StatusOS> transicoesPermitidas() {
+            return Set.of(APROVADO, CANCELADA);
+        }
+    },
+    APROVADO {
+        @Override
+        public Set<StatusOS> transicoesPermitidas() {
             return Set.of(EM_EXECUCAO, CANCELADA);
         }
     },

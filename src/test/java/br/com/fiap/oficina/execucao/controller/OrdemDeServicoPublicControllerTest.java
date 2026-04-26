@@ -54,11 +54,11 @@ class OrdemDeServicoPublicControllerTest {
     @Test
     void aprovar_statusAguardandoAprovacao_deveRetornarOk() throws Exception {
         when(service.aprovar("OS-2026-00001"))
-                .thenReturn(criarStatusResponse("EM_EXECUCAO"));
+                .thenReturn(criarStatusResponse("APROVADO"));
 
         mockMvc.perform(post("/api/public/ordens/{numero}/aprovar", "OS-2026-00001"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("EM_EXECUCAO"));
+                .andExpect(jsonPath("$.status").value("APROVADO"));
     }
 
     @Test
