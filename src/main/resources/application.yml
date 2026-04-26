@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: oficina
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/oficina
+    username: oficina
+    password: oficina
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /api-docs
+
+oficina:
+  jwt:
+    secret: chave-secreta-minimo-256-bits-para-o-jwt-do-sistema-oficina
+    expiracao: 86400000
