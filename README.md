@@ -11,11 +11,12 @@ Backend MVP de um sistema integrado de atendimento e execução de serviços de 
 - [Visão Geral](#visão-geral)
 - [Arquitetura](#arquitetura)
 - [Tecnologias](#tecnologias)
-- [O que está implementado](#o-que-está-implementado)
-- [O que será implementado](#o-que-será-implementado)
+- [Bounded Contexts implementados](#bounded-contexts-implementados)
 - [Como rodar com Docker Compose](#como-rodar-com-docker-compose)
 - [Como rodar localmente (sem Docker)](#como-rodar-localmente-sem-docker)
+- [Autenticação JWT](#autenticação-jwt)
 - [Endpoints disponíveis](#endpoints-disponíveis)
+- [Coleção Postman](#coleção-postman)
 - [Documentação interativa (Swagger)](#documentação-interativa-swagger)
 - [Testes](#testes)
 
@@ -42,12 +43,12 @@ Monolito em camadas com organização interna por **Bounded Context** (DDD). Cad
 
 ```
 br.com.fiap.oficina/
-├── atendimento/       ← Clientes e Veículos ✓
-├── execucao/          ← Ordens de Serviço ✓
-├── estoque/           ← Peças e Estoque (stub de integração) ✓
-├── administracao/     ← Catálogo de Serviços (stub) ✓
-├── seguranca/         ← JWT e Autenticação (a implementar)
-└── shared/            ← Exceções globais ✓
+├── atendimento/       ✓ Clientes, Veículos e Atendentes
+├── execucao/          ✓ Ordens de Serviço (ciclo completo)
+├── estoque/           ✓ Peças, movimentações e reservas
+├── administracao/     ✓ Catálogo de Serviços e Relatórios
+├── seguranca/         ✓ JWT e Autenticação
+└── shared/            ✓ Exceções e tratamento global de erros
 ```
 
 ---
@@ -59,7 +60,7 @@ br.com.fiap.oficina/
 | Java | 17 |
 | Spring Boot | 3.4.5 |
 | Spring Data JPA | — |
-| Spring Security | — |
+| Spring Security | 6 |
 | jjwt | 0.12.6 |
 | SpringDoc OpenAPI | 2.8.4 |
 | PostgreSQL | 16 |
@@ -70,23 +71,37 @@ br.com.fiap.oficina/
 
 ---
 
-## O que está implementado
+## Bounded Contexts implementados
 
-### Infraestrutura Compartilhada
+### Segurança (JWT)
 
-- `RecursoNaoEncontradoException` — HTTP 404
-- `RegraDeNegocioException` — HTTP 422
-- `GlobalExceptionHandler` — respostas JSON padronizadas para todos os erros
-- `SecurityConfig` — configuração temporária (endpoints liberados até implementação do JWT)
-- `OpenApiConfig` — Swagger UI com esquema `bearerAuth`
+Autenticação stateless com JWT. Todos os endpoints `/api/admin/**` exigem token válido no header `Authorization: Bearer <token>`.
 
-### Bounded Context: Atendimento ao Cliente
+| Método | Endpoint | Descrição |
+|---|---|---|
+| `POST` | `/api/auth/login` | Autenticar e obter token JWT |
+
+**Configuração via variáveis de ambiente:**
+
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `OFICINA_ADMIN_LOGIN` | `admin` | Login do usuário padrão criado na inicialização |
+| `OFICINA_ADMIN_SENHA` | `admin123` | Senha do usuário padrão |
+| `OFICINA_BCRYPT_STRENGTH` | `10` | Fator de custo do BCrypt (4–31) |
+| `OFICINA_JWT_SECRET` | *(definido no yml)* | Chave HMAC-SHA para assinar tokens |
+| `OFICINA_JWT_EXPIRACAO` | `86400000` | Expiração do token em ms (padrão: 24h) |
+
+**Testes:** `JwtServiceTest` (6) · `AuthControllerTest` (3)
+
+---
+
+### Atendimento ao Cliente
 
 **Value Objects com validação de domínio:**
 
 | Classe | Descrição |
 |---|---|
-| `Documento` | Encapsula CPF ou CNPJ. Valida pelo algoritmo completo dos dígitos verificadores. Aceita com ou sem formatação |
+| `Documento` | Encapsula CPF ou CNPJ. Valida pelo algoritmo completo dos dígitos verificadores |
 | `Placa` | Valida e normaliza placas no formato antigo (ABC1234) e Mercosul (ABC1D23) |
 | `TipoDocumento` | Enum `CPF` / `CNPJ` |
 
@@ -96,9 +111,9 @@ br.com.fiap.oficina/
 |---|---|
 | `Cliente` | Aggregate Root. Pessoa física (CPF) ou jurídica (CNPJ) |
 | `Veiculo` | Associado a um cliente, identificado pela placa |
-| `Atendente` | Mecânico vinculado à OS |
+| `Atendente` | Funcionário responsável pela OS |
 
-**Endpoints disponíveis** (todos exigirão JWT após implementação da segurança):
+**Endpoints** (exigem JWT):
 
 ```
 POST   /api/admin/clientes
@@ -115,26 +130,28 @@ GET    /api/admin/veiculos/placa/{placa}
 GET    /api/admin/veiculos/cliente/{clienteId}
 PUT    /api/admin/veiculos/{id}
 DELETE /api/admin/veiculos/{id}
+
+POST   /api/admin/atendentes
+GET    /api/admin/atendentes
+GET    /api/admin/atendentes/{id}
+PUT    /api/admin/atendentes/{id}
+DELETE /api/admin/atendentes/{id}
 ```
 
-**Regras de negócio aplicadas:**
+**Regras de negócio:**
 - CPF validado pelo algoritmo dos dois dígitos verificadores
 - CNPJ validado pelo algoritmo padrão de 14 dígitos
 - Documento duplicado retorna HTTP 422
 - Placa duplicada retorna HTTP 422
-- Placa normalizada para maiúsculas ao persistir
+- Email de atendente duplicado retorna HTTP 422
 
-**Testes:**
-- 12 testes unitários — `ClienteServiceTest`
-- 9 testes unitários — `VeiculoServiceTest`
-- 10 testes de integração MockMvc — `ClienteControllerTest`
-- 11 testes de integração MockMvc — `VeiculoControllerTest`
+**Testes:** `ClienteServiceTest` (12) · `VeiculoServiceTest` (9) · `ClienteControllerTest` (10) · `VeiculoControllerTest` (11) · `AtendenteControllerTest` (9)
 
 ---
 
-### Bounded Context: Execução de Serviços
+### Execução de Serviços
 
-**Máquina de estados do StatusOS:**
+**Máquina de estados do `StatusOS`:**
 
 ```
 RECEBIDA → EM_DIAGNOSTICO → AGUARDANDO_APROVACAO → EM_EXECUCAO → FINALIZADA → ENTREGUE
@@ -144,34 +161,25 @@ RECEBIDA → EM_DIAGNOSTICO → AGUARDANDO_APROVACAO → EM_EXECUCAO → FINALIZ
 
 Transições são unidirecionais. Qualquer tentativa de transição inválida retorna HTTP 422.
 
-**Aggregate e Entidades:**
+**Entidades:**
 
 | Classe | Descrição |
 |---|---|
-| `OrdemDeServico` | Aggregate Root. Controla todo o ciclo de vida da OS |
-| `ItemServico` | Serviço do catálogo vinculado a uma OS (quantidade + preço capturado no momento) |
-| `ItemPeca` | Peça vinculada a uma OS (quantidade + preço capturado no momento) |
+| `OrdemDeServico` | Aggregate Root. Controla todo o ciclo de vida |
+| `ItemServico` | Serviço do catálogo vinculado à OS |
+| `ItemPeca` | Peça vinculada à OS (reserva estoque ao adicionar) |
 | `StatusOS` | Enum com validação de transição via `validarTransicaoPara()` |
 
-**Regras de negócio aplicadas:**
+**Regras de negócio:**
 - Número gerado automaticamente no formato `OS-{ano}-{sequencial 5 dígitos}` (ex: `OS-2026-00001`)
-- `valorTotal` = Σ(quantidade × precoUnitario) para serviços + peças, recalculado automaticamente
+- `valorTotal` recalculado automaticamente a cada adição ou remoção de item
 - `dataInicioExecucao` registrada ao transicionar para `EM_EXECUCAO`
 - `dataFimExecucao` registrada ao transicionar para `FINALIZADA`
-- Ao iniciar execução: peças reservadas são convertidas em baixas definitivas via `EstoqueService`
-- Ao cancelar: todas as reservas de peças são liberadas via `EstoqueService`
-- Edição de itens bloqueada quando OS está em `EM_EXECUCAO`, `FINALIZADA`, `ENTREGUE` ou `CANCELADA`
-- Reserva de estoque ao adicionar peça: verifica disponibilidade (`qtdEstoque - qtdReservada >= qtdSolicitada`)
+- Ao iniciar execução: reservas de peças convertidas em baixas definitivas
+- Ao cancelar: todas as reservas de peças são liberadas
+- Edição de itens bloqueada após `EM_EXECUCAO`
 
-**Integração com Estoque (EstoqueService):**
-
-| Operação | Quando |
-|---|---|
-| `verificarDisponibilidadeEReservar` | Ao adicionar peça à OS |
-| `liberarReserva` | Ao remover peça da OS ou cancelar a OS |
-| `baixarEstoque` | Ao iniciar execução (aprovação) — converte reserva em baixa definitiva |
-
-**Endpoints admin** (exigirão JWT após implementação da segurança):
+**Endpoints admin** (exigem JWT):
 
 | Método | Endpoint | Descrição |
 |---|---|---|
@@ -179,57 +187,85 @@ Transições são unidirecionais. Qualquer tentativa de transição inválida re
 | `GET` | `/api/admin/ordens` | Listar todas as OSs |
 | `GET` | `/api/admin/ordens/{id}` | Buscar OS por ID |
 | `POST` | `/api/admin/ordens/{id}/servicos` | Adicionar serviço à OS |
-| `DELETE` | `/api/admin/ordens/{id}/servicos/{itemId}` | Remover serviço da OS |
-| `POST` | `/api/admin/ordens/{id}/pecas` | Adicionar peça à OS (reserva estoque) |
-| `DELETE` | `/api/admin/ordens/{id}/pecas/{itemId}` | Remover peça da OS (libera reserva) |
-| `POST` | `/api/admin/ordens/{id}/iniciar-diagnostico` | Transição RECEBIDA → EM_DIAGNOSTICO |
-| `POST` | `/api/admin/ordens/{id}/enviar-orcamento` | Transição EM_DIAGNOSTICO → AGUARDANDO_APROVACAO |
-| `POST` | `/api/admin/ordens/{id}/iniciar-execucao` | Transição AGUARDANDO_APROVACAO → EM_EXECUCAO |
-| `POST` | `/api/admin/ordens/{id}/finalizar` | Transição EM_EXECUCAO → FINALIZADA |
-| `POST` | `/api/admin/ordens/{id}/entregar` | Transição FINALIZADA → ENTREGUE |
-| `POST` | `/api/admin/ordens/{id}/cancelar` | Cancelar OS (antes de EM_EXECUCAO) |
+| `DELETE` | `/api/admin/ordens/{id}/servicos/{itemId}` | Remover serviço |
+| `POST` | `/api/admin/ordens/{id}/pecas` | Adicionar peça (reserva estoque) |
+| `DELETE` | `/api/admin/ordens/{id}/pecas/{itemId}` | Remover peça (libera reserva) |
+| `POST` | `/api/admin/ordens/{id}/iniciar-diagnostico` | RECEBIDA → EM_DIAGNOSTICO |
+| `POST` | `/api/admin/ordens/{id}/enviar-orcamento` | EM_DIAGNOSTICO → AGUARDANDO_APROVACAO |
+| `POST` | `/api/admin/ordens/{id}/iniciar-execucao` | AGUARDANDO_APROVACAO → EM_EXECUCAO |
+| `POST` | `/api/admin/ordens/{id}/finalizar` | EM_EXECUCAO → FINALIZADA |
+| `POST` | `/api/admin/ordens/{id}/entregar` | FINALIZADA → ENTREGUE |
+| `POST` | `/api/admin/ordens/{id}/cancelar` | Cancelar OS |
 
 **Endpoints públicos** (sem autenticação):
 
 | Método | Endpoint | Descrição |
 |---|---|---|
-| `GET` | `/api/public/ordens/{numero}/status` | Consultar status da OS por número |
+| `GET` | `/api/public/ordens/{numero}/status` | Consultar status por número |
 | `POST` | `/api/public/ordens/{numero}/aprovar` | Cliente aprova o orçamento |
 | `POST` | `/api/public/ordens/{numero}/recusar` | Cliente recusa o orçamento |
 
-**Testes:**
-- 14 testes unitários — `StatusOSTest` (todas as transições válidas e inválidas)
-- 14 testes unitários — `OrdemDeServicoServiceTest`
-- 8 testes de integração MockMvc — `OrdemDeServicoAdminControllerTest`
-- 5 testes de integração MockMvc — `OrdemDeServicoPublicControllerTest`
+**Testes:** `StatusOSTest` (14) · `OrdemDeServicoServiceTest` (14) · `OrdemDeServicoAdminControllerTest` (8) · `OrdemDeServicoPublicControllerTest` (5)
 
 ---
 
-## O que será implementado
+### Estoque e Insumos
 
-### Bounded Context: Segurança (JWT)
+**Entidades:**
 
-Autenticação e autorização de todos os endpoints `/api/admin/**`.
+| Classe | Descrição |
+|---|---|
+| `Peca` | Aggregate Root. Controla `qtdEstoque`, `qtdReservada` e `qtdMinima` |
+| `MovimentacaoEstoque` | Auditoria de cada movimentação (ENTRADA, RESERVA, BAIXA, LIBERACAO_RESERVA) |
 
-- `POST /api/auth/login` — retorna token JWT
-- Filtro JWT validando `Authorization: Bearer <token>`
-- Endpoints públicos: `/api/public/**`, `/swagger-ui.html`, `/api-docs/**`
-
-### Bounded Context: Estoque e Insumos
-
-Gestão de peças com controle de disponibilidade em tempo real.
-
+**Regras de negócio:**
 - `qtdDisponivel = qtdEstoque - qtdReservada` (calculado, nunca persistido)
-- Reserva (soft-lock) ao vincular peça a uma OS
-- Baixa definitiva ao aprovar a OS
-- Liberação de reservas ao cancelar a OS
-- Alerta de estoque crítico quando `qtdEstoque <= qtdMinima`
-- Histórico de movimentações por peça
+- Reserva verifica disponibilidade — HTTP 422 se insuficiente
+- `estoqueCritico = true` na resposta quando `qtdEstoque <= qtdMinima`
+- Toda movimentação gera registro em `MovimentacaoEstoque`
+- Exclusão bloqueada se houver reservas ativas
 
-### Bounded Context: Gestão Administrativa
+**Endpoints** (exigem JWT):
 
-- CRUD do catálogo de serviços
-- Relatório de tempo médio de execução de OSs finalizadas
+| Método | Endpoint | Descrição |
+|---|---|---|
+| `POST` | `/api/admin/pecas` | Cadastrar peça |
+| `GET` | `/api/admin/pecas` | Listar todas as peças |
+| `GET` | `/api/admin/pecas/criticas` | Listar peças em estoque crítico |
+| `GET` | `/api/admin/pecas/{id}` | Buscar peça por ID |
+| `PUT` | `/api/admin/pecas/{id}` | Atualizar peça |
+| `DELETE` | `/api/admin/pecas/{id}` | Excluir peça |
+| `POST` | `/api/admin/pecas/{id}/entrada` | Registrar entrada de estoque |
+| `GET` | `/api/admin/pecas/{id}/movimentacoes` | Histórico de movimentações |
+
+**Testes:** `PecaServiceTest` (12) · `PecaControllerTest` (12)
+
+---
+
+### Gestão Administrativa
+
+**Entidades:**
+
+| Classe | Descrição |
+|---|---|
+| `Servico` | Catálogo de tipos de serviço com nome, descrição e preço base |
+
+**Regras de negócio:**
+- Nome de serviço duplicado retorna HTTP 422
+- Tempo médio calculado sobre OSs com status `FINALIZADA` ou `ENTREGUE`
+
+**Endpoints** (exigem JWT):
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| `POST` | `/api/admin/servicos` | Cadastrar serviço no catálogo |
+| `GET` | `/api/admin/servicos` | Listar todos os serviços |
+| `GET` | `/api/admin/servicos/{id}` | Buscar serviço por ID |
+| `PUT` | `/api/admin/servicos/{id}` | Atualizar serviço |
+| `DELETE` | `/api/admin/servicos/{id}` | Excluir serviço |
+| `GET` | `/api/admin/relatorios/tempo-medio` | Tempo médio de execução de OSs |
+
+**Testes:** `ServicoServiceTest` (9) · `ServicoControllerTest` (9) · `RelatorioServiceTest` (4) · `RelatorioControllerTest` (2)
 
 ---
 
@@ -310,24 +346,48 @@ GRANT ALL PRIVILEGES ON DATABASE oficina TO oficina;
 
 ---
 
+## Autenticação JWT
+
+Todos os endpoints `/api/admin/**` exigem autenticação. Obtenha o token via login:
+
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"login": "admin", "senha": "admin123"}'
+```
+
+Resposta:
+
+```json
+{ "token": "eyJhbGciOiJIUzI1NiJ9..." }
+```
+
+Use o token nas requisições protegidas:
+
+```bash
+curl http://localhost:8080/api/admin/clientes \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9..."
+```
+
+---
+
 ## Endpoints disponíveis
+
+### Autenticação
+
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"login": "admin", "senha": "admin123"}'
+```
 
 ### Clientes
 
-| Método | Endpoint | Descrição |
-|---|---|---|
-| `POST` | `/api/admin/clientes` | Cadastrar cliente (CPF ou CNPJ) |
-| `GET` | `/api/admin/clientes` | Listar todos os clientes |
-| `GET` | `/api/admin/clientes/{id}` | Buscar cliente por ID |
-| `GET` | `/api/admin/clientes/documento/{doc}` | Buscar por CPF/CNPJ |
-| `PUT` | `/api/admin/clientes/{id}` | Atualizar dados do cliente |
-| `DELETE` | `/api/admin/clientes/{id}` | Excluir cliente |
-
-**Exemplo — cadastrar cliente:**
-
 ```bash
+# Cadastrar cliente
 curl -X POST http://localhost:8080/api/admin/clientes \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{
     "nome": "João Silva",
     "email": "joao@email.com",
@@ -338,21 +398,11 @@ curl -X POST http://localhost:8080/api/admin/clientes \
 
 ### Veículos
 
-| Método | Endpoint | Descrição |
-|---|---|---|
-| `POST` | `/api/admin/veiculos` | Cadastrar veículo |
-| `GET` | `/api/admin/veiculos` | Listar todos os veículos |
-| `GET` | `/api/admin/veiculos/{id}` | Buscar veículo por ID |
-| `GET` | `/api/admin/veiculos/placa/{placa}` | Buscar por placa |
-| `GET` | `/api/admin/veiculos/cliente/{clienteId}` | Listar veículos de um cliente |
-| `PUT` | `/api/admin/veiculos/{id}` | Atualizar dados do veículo |
-| `DELETE` | `/api/admin/veiculos/{id}` | Excluir veículo |
-
-**Exemplo — cadastrar veículo:**
-
 ```bash
+# Cadastrar veículo
 curl -X POST http://localhost:8080/api/admin/veiculos \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{
     "marca": "Toyota",
     "modelo": "Corolla",
@@ -365,27 +415,21 @@ curl -X POST http://localhost:8080/api/admin/veiculos \
 
 ### Ordens de Serviço
 
-**Exemplo — abrir OS:**
-
 ```bash
+# Abrir OS
 curl -X POST http://localhost:8080/api/admin/ordens \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{
-    "clienteId": "<uuid-do-cliente>",
-    "veiculoId": "<uuid-do-veiculo>",
+    "clienteId": "<uuid>",
+    "veiculoId": "<uuid>",
     "observacoes": "Veículo com barulho no motor"
   }'
-```
 
-**Exemplo — consultar status (público):**
-
-```bash
+# Consultar status (público, sem token)
 curl http://localhost:8080/api/public/ordens/OS-2026-00001/status
-```
 
-**Exemplo — cliente aprovar orçamento (público):**
-
-```bash
+# Cliente aprovar orçamento (público, sem token)
 curl -X POST http://localhost:8080/api/public/ordens/OS-2026-00001/aprovar
 ```
 
@@ -395,18 +439,18 @@ Todos os erros retornam JSON padronizado:
 
 ```json
 {
-  "timestamp": "2026-04-25T15:00:00",
+  "timestamp": "2026-04-26T15:00:00",
   "status": 422,
   "erro": "Unprocessable Entity",
   "mensagem": "Já existe um cliente cadastrado com este documento"
 }
 ```
 
-Erros de validação incluem o campo `campos` com detalhes por campo:
+Erros de validação incluem o campo `campos`:
 
 ```json
 {
-  "timestamp": "2026-04-25T15:00:00",
+  "timestamp": "2026-04-26T15:00:00",
   "status": 400,
   "erro": "Bad Request",
   "mensagem": "Erro de validação",
@@ -419,6 +463,20 @@ Erros de validação incluem o campo `campos` com detalhes por campo:
 
 ---
 
+## Coleção Postman
+
+A coleção completa está em `postman/collections/oficina-fluxo-completo.postman_collection.json`.
+
+Cobre os 3 fluxos do Miro (Criação da OS, Acompanhamento da OS, Gestão de Peças) com captura automática de variáveis via test scripts (`token`, `osId`, `osNumero`, `servicoId`, `pecaId`, etc.).
+
+**Como usar:**
+1. Importe o arquivo no Postman
+2. Execute `0.1 Login` — o token é salvo automaticamente
+3. Execute o Setup (pastas 1 e 2) para criar serviços e peças
+4. Siga os fluxos na ordem das pastas
+
+---
+
 ## Documentação interativa (Swagger)
 
 Com a aplicação rodando, acesse:
@@ -426,6 +484,8 @@ Com a aplicação rodando, acesse:
 ```
 http://localhost:8080/swagger-ui.html
 ```
+
+Clique em **Authorize** e informe o token JWT para testar os endpoints protegidos diretamente pelo Swagger.
 
 ---
 
@@ -445,15 +505,24 @@ Cobertura mínima configurada: **80%** nas classes de domínio (excluindo DTOs, 
 
 ### Suíte atual de testes
 
-| Contexto | Classe de Teste | Testes |
-|---|---|---|
-| Atendimento | `ClienteServiceTest` | 12 |
-| Atendimento | `VeiculoServiceTest` | 9 |
-| Atendimento | `ClienteControllerTest` | 10 |
-| Atendimento | `VeiculoControllerTest` | 11 |
-| Execução | `StatusOSTest` | 14 |
-| Execução | `OrdemDeServicoServiceTest` | 14 |
-| Execução | `OrdemDeServicoAdminControllerTest` | 8 |
-| Execução | `OrdemDeServicoPublicControllerTest` | 5 |
-| Integração | `OficinaApplicationTests` | 1 |
-| **Total** | | **84** |
+| Contexto | Classe de Teste | Tipo | Testes |
+|---|---|---|---|
+| Segurança | `JwtServiceTest` | Unitário | 6 |
+| Segurança | `AuthControllerTest` | MockMvc | 3 |
+| Atendimento | `ClienteServiceTest` | Unitário | 12 |
+| Atendimento | `VeiculoServiceTest` | Unitário | 9 |
+| Atendimento | `ClienteControllerTest` | MockMvc | 10 |
+| Atendimento | `VeiculoControllerTest` | MockMvc | 11 |
+| Atendimento | `AtendenteControllerTest` | MockMvc | 9 |
+| Execução | `StatusOSTest` | Unitário | 14 |
+| Execução | `OrdemDeServicoServiceTest` | Unitário | 14 |
+| Execução | `OrdemDeServicoAdminControllerTest` | MockMvc | 8 |
+| Execução | `OrdemDeServicoPublicControllerTest` | MockMvc | 5 |
+| Estoque | `PecaServiceTest` | Unitário | 12 |
+| Estoque | `PecaControllerTest` | MockMvc | 12 |
+| Administração | `ServicoServiceTest` | Unitário | 9 |
+| Administração | `ServicoControllerTest` | MockMvc | 9 |
+| Administração | `RelatorioServiceTest` | Unitário | 4 |
+| Administração | `RelatorioControllerTest` | MockMvc | 2 |
+| Integração | `OficinaApplicationTests` | Spring | 1 |
+| **Total** | | | **150** |
