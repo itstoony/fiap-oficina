@@ -31,3 +31,5 @@ oficina:
     senha: ${OFICINA_ADMIN_SENHA:admin123}
   seguranca:
     bcrypt-strength: ${OFICINA_BCRYPT_STRENGTH:10}
+    cors:
+      allowed-origins: ${OFICINA_CORS_ORIGINS:http://localhost:3000}
