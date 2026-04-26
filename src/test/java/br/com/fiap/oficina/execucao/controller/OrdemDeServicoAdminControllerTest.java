@@ -3,6 +3,7 @@ package br.com.fiap.oficina.execucao.controller;
 import br.com.fiap.oficina.execucao.service.OrdemDeServicoService;
 import br.com.fiap.oficina.execucao.service.dto.OrdemDeServicoDTO;
 import br.com.fiap.oficina.seguranca.config.SecurityConfig;
+import br.com.fiap.oficina.seguranca.service.JwtService;
 import br.com.fiap.oficina.shared.exception.RecursoNaoEncontradoException;
 import br.com.fiap.oficina.shared.exception.RegraDeNegocioException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,6 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -20,18 +23,21 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(OrdemDeServicoAdminController.class)
 @Import(SecurityConfig.class)
+@WithMockUser
 class OrdemDeServicoAdminControllerTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
+
     @MockitoBean private OrdemDeServicoService service;
+    @MockitoBean private JwtService jwtService;
+    @MockitoBean private UserDetailsService userDetailsService;
 
     @Test
     void criar_comDadosValidos_deveRetornarCreated() throws Exception {
@@ -97,8 +103,7 @@ class OrdemDeServicoAdminControllerTest {
     @Test
     void iniciarDiagnostico_transicaoInvalida_deveRetornarUnprocessableEntity() throws Exception {
         UUID id = UUID.randomUUID();
-        when(service.iniciarDiagnostico(id))
-                .thenThrow(new RegraDeNegocioException("Transição não permitida"));
+        when(service.iniciarDiagnostico(id)).thenThrow(new RegraDeNegocioException("Transição não permitida"));
 
         mockMvc.perform(post("/api/admin/ordens/{id}/iniciar-diagnostico", id))
                 .andExpect(status().isUnprocessableEntity());

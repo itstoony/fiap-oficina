@@ -3,6 +3,7 @@ package br.com.fiap.oficina.atendimento.controller;
 import br.com.fiap.oficina.atendimento.service.VeiculoService;
 import br.com.fiap.oficina.atendimento.service.dto.VeiculoDTO;
 import br.com.fiap.oficina.seguranca.config.SecurityConfig;
+import br.com.fiap.oficina.seguranca.service.JwtService;
 import br.com.fiap.oficina.shared.exception.RecursoNaoEncontradoException;
 import br.com.fiap.oficina.shared.exception.RegraDeNegocioException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,6 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -28,6 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(VeiculoController.class)
 @Import(SecurityConfig.class)
+@WithMockUser
 class VeiculoControllerTest {
 
     @Autowired
@@ -38,6 +42,12 @@ class VeiculoControllerTest {
 
     @MockitoBean
     private VeiculoService service;
+
+    @MockitoBean
+    private JwtService jwtService;
+
+    @MockitoBean
+    private UserDetailsService userDetailsService;
 
     private final UUID clienteId = UUID.randomUUID();
 
@@ -153,16 +163,8 @@ class VeiculoControllerTest {
 
     private VeiculoDTO.Response criarResponse(UUID id) {
         return new VeiculoDTO.Response(
-                id,
-                "Toyota",
-                "Corolla",
-                2020,
-                "Prata",
-                "ABC1234",
-                clienteId,
-                "João Silva",
-                LocalDateTime.now(),
-                LocalDateTime.now()
+                id, "Toyota", "Corolla", 2020, "Prata", "ABC1234",
+                clienteId, "João Silva", LocalDateTime.now(), LocalDateTime.now()
         );
     }
 }

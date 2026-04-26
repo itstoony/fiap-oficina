@@ -3,6 +3,7 @@ package br.com.fiap.oficina.administracao.controller;
 import br.com.fiap.oficina.administracao.service.ServicoService;
 import br.com.fiap.oficina.administracao.service.dto.ServicoDTO;
 import br.com.fiap.oficina.seguranca.config.SecurityConfig;
+import br.com.fiap.oficina.seguranca.service.JwtService;
 import br.com.fiap.oficina.shared.exception.RecursoNaoEncontradoException;
 import br.com.fiap.oficina.shared.exception.RegraDeNegocioException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,6 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -29,16 +32,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(ServicoController.class)
 @Import(SecurityConfig.class)
+@WithMockUser
 class ServicoControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @MockitoBean
-    private ServicoService service;
+    @MockitoBean private ServicoService service;
+    @MockitoBean private JwtService jwtService;
+    @MockitoBean private UserDetailsService userDetailsService;
 
     @Test
     void cadastrar_comDadosValidos_deveRetornarCreated() throws Exception {
