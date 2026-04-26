@@ -32,6 +32,9 @@ services:
       SPRING_DATASOURCE_USERNAME: oficina
       SPRING_DATASOURCE_PASSWORD: oficina
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      OFICINA_ADMIN_LOGIN: meuadmin
+      OFICINA_ADMIN_SENHA: senha_forte
+      OFICINA_BCRYPT_STRENGTH: 12
     depends_on:
       db:
         condition: service_healthy
