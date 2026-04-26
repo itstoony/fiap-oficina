@@ -102,7 +102,7 @@ class OrdemDeServicoServiceTest {
     @Test
     void iniciarDiagnostico_statusRecebida_deveMudarParaEmDiagnostico() {
         OrdemDeServico os = criarOS(StatusOS.RECEBIDA);
-        when(repository.findByIdComItens(os.getId())).thenReturn(Optional.of(os));
+        when(repository.findById(os.getId())).thenReturn(Optional.of(os));
         when(repository.save(any())).thenReturn(os);
 
         var response = service.iniciarDiagnostico(os.getId());
@@ -113,7 +113,7 @@ class OrdemDeServicoServiceTest {
     @Test
     void iniciarDiagnostico_statusInvalido_deveLancarExcecao() {
         OrdemDeServico os = criarOS(StatusOS.EM_EXECUCAO);
-        when(repository.findByIdComItens(os.getId())).thenReturn(Optional.of(os));
+        when(repository.findById(os.getId())).thenReturn(Optional.of(os));
 
         assertThatThrownBy(() -> service.iniciarDiagnostico(os.getId()))
                 .isInstanceOf(RegraDeNegocioException.class);
@@ -122,7 +122,7 @@ class OrdemDeServicoServiceTest {
     @Test
     void enviarOrcamento_statusEmDiagnostico_deveMudarParaAguardandoAprovacao() {
         OrdemDeServico os = criarOS(StatusOS.EM_DIAGNOSTICO);
-        when(repository.findByIdComItens(os.getId())).thenReturn(Optional.of(os));
+        when(repository.findById(os.getId())).thenReturn(Optional.of(os));
         when(repository.save(any())).thenReturn(os);
 
         var response = service.enviarOrcamento(os.getId());
@@ -133,7 +133,7 @@ class OrdemDeServicoServiceTest {
     @Test
     void iniciarExecucao_statusAguardandoAprovacao_deveMudarParaEmExecucao() {
         OrdemDeServico os = criarOS(StatusOS.AGUARDANDO_APROVACAO);
-        when(repository.findByIdComItens(os.getId())).thenReturn(Optional.of(os));
+        when(repository.findById(os.getId())).thenReturn(Optional.of(os));
         when(repository.save(any())).thenReturn(os);
 
         var response = service.iniciarExecucao(os.getId());
@@ -145,7 +145,7 @@ class OrdemDeServicoServiceTest {
     @Test
     void finalizar_statusEmExecucao_deveMudarParaFinalizada() {
         OrdemDeServico os = criarOS(StatusOS.EM_EXECUCAO);
-        when(repository.findByIdComItens(os.getId())).thenReturn(Optional.of(os));
+        when(repository.findById(os.getId())).thenReturn(Optional.of(os));
         when(repository.save(any())).thenReturn(os);
 
         var response = service.finalizar(os.getId());
@@ -157,7 +157,7 @@ class OrdemDeServicoServiceTest {
     @Test
     void cancelar_statusRecebida_deveMudarParaCancelada() {
         OrdemDeServico os = criarOS(StatusOS.RECEBIDA);
-        when(repository.findByIdComItens(os.getId())).thenReturn(Optional.of(os));
+        when(repository.findById(os.getId())).thenReturn(Optional.of(os));
         when(repository.save(any())).thenReturn(os);
 
         var response = service.cancelar(os.getId());
@@ -168,7 +168,7 @@ class OrdemDeServicoServiceTest {
     @Test
     void cancelar_statusEmExecucao_deveLancarExcecao() {
         OrdemDeServico os = criarOS(StatusOS.EM_EXECUCAO);
-        when(repository.findByIdComItens(os.getId())).thenReturn(Optional.of(os));
+        when(repository.findById(os.getId())).thenReturn(Optional.of(os));
 
         assertThatThrownBy(() -> service.cancelar(os.getId()))
                 .isInstanceOf(RegraDeNegocioException.class);
@@ -185,7 +185,7 @@ class OrdemDeServicoServiceTest {
         Servico servico = Servico.builder()
                 .id(servicoId).nome("Troca de óleo").precoBase(new BigDecimal("150.00")).build();
 
-        when(repository.findByIdComItens(os.getId())).thenReturn(Optional.of(os));
+        when(repository.findById(os.getId())).thenReturn(Optional.of(os));
         when(servicoRepository.findById(servicoId)).thenReturn(Optional.of(servico));
         when(repository.save(any())).thenReturn(os);
 
@@ -198,7 +198,7 @@ class OrdemDeServicoServiceTest {
     @Test
     void adicionarServico_osEmExecucao_deveLancarExcecao() {
         OrdemDeServico os = criarOS(StatusOS.EM_EXECUCAO);
-        when(repository.findByIdComItens(os.getId())).thenReturn(Optional.of(os));
+        when(repository.findById(os.getId())).thenReturn(Optional.of(os));
 
         assertThatThrownBy(() -> service.adicionarServico(os.getId(),
                 new ItemServicoDTO.AdicionarRequest(UUID.randomUUID(), 1, null)))
@@ -212,7 +212,7 @@ class OrdemDeServicoServiceTest {
     @Test
     void aprovar_statusAguardandoAprovacao_deveMudarParaEmExecucao() {
         OrdemDeServico os = criarOS(StatusOS.AGUARDANDO_APROVACAO);
-        when(repository.findByNumeroComItens(os.getNumero())).thenReturn(Optional.of(os));
+        when(repository.findByNumero(os.getNumero())).thenReturn(Optional.of(os));
         when(repository.save(any())).thenReturn(os);
 
         var response = service.aprovar(os.getNumero());
@@ -223,7 +223,7 @@ class OrdemDeServicoServiceTest {
     @Test
     void recusar_statusAguardandoAprovacao_deveMudarParaCancelada() {
         OrdemDeServico os = criarOS(StatusOS.AGUARDANDO_APROVACAO);
-        when(repository.findByNumeroComItens(os.getNumero())).thenReturn(Optional.of(os));
+        when(repository.findByNumero(os.getNumero())).thenReturn(Optional.of(os));
         when(repository.save(any())).thenReturn(os);
 
         var response = service.recusar(os.getNumero());
@@ -233,7 +233,7 @@ class OrdemDeServicoServiceTest {
 
     @Test
     void buscarStatusPublico_osInexistente_deveLancarExcecao() {
-        when(repository.findByNumeroComItens("OS-2026-99999")).thenReturn(Optional.empty());
+        when(repository.findByNumero("OS-2026-99999")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.buscarStatusPublico("OS-2026-99999"))
                 .isInstanceOf(RecursoNaoEncontradoException.class);
