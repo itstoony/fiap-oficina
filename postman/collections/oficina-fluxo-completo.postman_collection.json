@@ -40,7 +40,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"login\": \"admin\",\n  \"senha\": \"admin123\"\n}"
+              "raw": "{\n  \"login\": \"meuadmin\",\n  \"senha\": \"senha_forte\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/auth/login",
