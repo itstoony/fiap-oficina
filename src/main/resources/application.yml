@@ -26,3 +26,8 @@ oficina:
   jwt:
     secret: chave-secreta-minimo-256-bits-para-o-jwt-do-sistema-oficina
     expiracao: 86400000
+  admin:
+    login: ${OFICINA_ADMIN_LOGIN:admin}
+    senha: ${OFICINA_ADMIN_SENHA:admin123}
+  seguranca:
+    bcrypt-strength: ${OFICINA_BCRYPT_STRENGTH:10}
