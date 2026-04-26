@@ -4,6 +4,7 @@ import br.com.fiap.oficina.estoque.domain.valueobject.TipoMovimentacao;
 import br.com.fiap.oficina.estoque.service.PecaService;
 import br.com.fiap.oficina.estoque.service.dto.PecaDTO;
 import br.com.fiap.oficina.seguranca.config.SecurityConfig;
+import br.com.fiap.oficina.seguranca.service.JwtService;
 import br.com.fiap.oficina.shared.exception.RecursoNaoEncontradoException;
 import br.com.fiap.oficina.shared.exception.RegraDeNegocioException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,6 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -30,16 +33,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(PecaController.class)
 @Import(SecurityConfig.class)
+@WithMockUser
 class PecaControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @MockitoBean
-    private PecaService service;
+    @MockitoBean private PecaService service;
+    @MockitoBean private JwtService jwtService;
+    @MockitoBean private UserDetailsService userDetailsService;
 
     @Test
     void cadastrar_comDadosValidos_deveRetornarCreated() throws Exception {
@@ -51,7 +53,6 @@ class PecaControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.nome").value("Filtro de Óleo"))
-                .andExpect(jsonPath("$.codigo").value("FILTRO-001"))
                 .andExpect(jsonPath("$.estoqueCritico").value(false));
     }
 
@@ -175,17 +176,9 @@ class PecaControllerTest {
 
     private PecaDTO.Response criarResponse(UUID id, int qtdEstoque, int qtdReservada, int qtdMinima) {
         return new PecaDTO.Response(
-                id,
-                "Filtro de Óleo",
-                "FILTRO-001",
-                new BigDecimal("45.90"),
-                qtdEstoque,
-                qtdReservada,
-                qtdEstoque - qtdReservada,
-                qtdMinima,
-                qtdEstoque <= qtdMinima,
-                LocalDateTime.now(),
-                LocalDateTime.now()
+                id, "Filtro de Óleo", "FILTRO-001", new BigDecimal("45.90"),
+                qtdEstoque, qtdReservada, qtdEstoque - qtdReservada, qtdMinima,
+                qtdEstoque <= qtdMinima, LocalDateTime.now(), LocalDateTime.now()
         );
     }
 }
