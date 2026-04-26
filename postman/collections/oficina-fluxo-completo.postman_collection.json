@@ -929,7 +929,20 @@
           "response": []
         },
         {
-          "name": "4.2 [PÚBLICO] Cliente Aprova o Orçamento (AGUARDANDO_APROVACAO → EM_EXECUCAO)",
+          "name": "4.2 [PÚBLICO] Cliente Aprova o Orçamento (AGUARDANDO_APROVACAO → APROVADO)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status deve ser APROVADO', function () {",
+                  "    pm.expect(pm.response.json().status).to.eql('APROVADO');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "id": "1fa7ca20-49ce-4f67-a5af-ab9e99c04a4c",
           "request": {
             "auth": {
@@ -954,7 +967,54 @@
           "response": []
         },
         {
-          "name": "4.3 Ver OS após Aprovação (estoque baixado)",
+          "name": "4.3 Atendente Inicia Execução (APROVADO → EM_EXECUCAO)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status deve ser EM_EXECUCAO', function () {",
+                  "    pm.expect(pm.response.json().status).to.eql('EM_EXECUCAO');",
+                  "});",
+                  "pm.test('Atendente deve estar atribuído', function () {",
+                  "    pm.expect(pm.response.json().atendenteId).to.not.be.null;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "b5c21a30-11fa-4e88-99bb-cd1234567890",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"atendenteId\": \"{{atendenteId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/ordens/{{osId}}/iniciar-execucao",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "ordens",
+                "{{osId}}",
+                "iniciar-execucao"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.4 Ver OS após Início da Execução (estoque baixado)",
           "id": "a4c40ea7-3d7e-405c-8e42-03faada88bb0",
           "request": {
             "method": "GET",
@@ -975,7 +1035,7 @@
           "response": []
         },
         {
-          "name": "4.4 Ver Movimentações da Peça (reserva convertida em baixa)",
+          "name": "4.6 Ver Movimentações da Peça (reserva convertida em baixa)",
           "id": "e0d52171-d691-4abf-9e1a-8db93f165354",
           "request": {
             "method": "GET",
@@ -997,7 +1057,7 @@
           "response": []
         },
         {
-          "name": "4.5 Finalizar OS (EM_EXECUCAO → FINALIZADA)",
+          "name": "4.7 Finalizar OS (EM_EXECUCAO → FINALIZADA)",
           "id": "078e50b2-3b65-4130-b5e9-e7fe81c4d650",
           "request": {
             "method": "POST",
@@ -1019,7 +1079,7 @@
           "response": []
         },
         {
-          "name": "4.6 [PÚBLICO] Cliente Consulta Status Final",
+          "name": "4.8 [PÚBLICO] Cliente Consulta Status Final",
           "id": "0291c320-2c21-44d9-9afd-dde0897142ea",
           "request": {
             "auth": {
@@ -1044,7 +1104,7 @@
           "response": []
         },
         {
-          "name": "4.7 Entregar Veículo (FINALIZADA → ENTREGUE)",
+          "name": "4.9 Entregar Veículo (FINALIZADA → ENTREGUE)",
           "id": "45e36c86-6169-4d82-a363-a6cb7de74d4f",
           "request": {
             "method": "POST",
@@ -1066,7 +1126,7 @@
           "response": []
         },
         {
-          "name": "4.8 Ver Relatório de Tempo Médio de Execução",
+          "name": "4.10 Ver Relatório de Tempo Médio de Execução",
           "id": "323bee8b-398f-4b0a-8453-313ad8ab4503",
           "request": {
             "method": "GET",
@@ -1261,18 +1321,52 @@
           "response": []
         },
         {
-          "name": "5.7 Admin Cancela OS diretamente",
+          "name": "5.7a Abrir nova OS (para cancelamento direto pelo admin)",
           "event": [
             {
-              "listen": "prerequest",
+              "listen": "test",
               "script": {
                 "exec": [
-                  "// Abrir nova OS antes de cancelar diretamente pelo admin"
+                  "if (pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    pm.collectionVariables.set('osId', json.id);",
+                  "    pm.collectionVariables.set('osNumero', json.numero);",
+                  "    console.log('✅ osId (admin cancel):', json.id);",
+                  "}"
                 ],
                 "type": "text/javascript"
               }
             }
           ],
+          "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clienteId\": \"{{clienteId}}\",\n  \"veiculoId\": \"{{veiculoId}}\",\n  \"observacoes\": \"OS para teste de cancelamento direto pelo admin\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/ordens",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "ordens"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.7 Admin Cancela OS diretamente",
           "id": "c4fddd37-0d03-4ba3-a39a-490fba66980a",
           "request": {
             "method": "POST",
@@ -1825,79 +1919,79 @@
   },
   "variable": [
     {
-      "id": "9e37d321-a92d-4125-8a34-e5fd01766239",
+      "id": "e74d4bf2-55e4-41ea-9aad-e187501cd38a",
       "key": "baseUrl",
       "value": "http://localhost:8080",
       "type": "string"
     },
     {
-      "id": "58187b87-8eb8-426b-a762-b79d0fb14569",
+      "id": "c3172258-b456-4dba-844b-95fc6b635a86",
       "key": "token",
       "value": "",
       "type": "string"
     },
     {
-      "id": "e6610691-03af-4ef2-8feb-e97e5a7678b6",
+      "id": "8ae9574e-c1d7-49fc-858d-be50812ceae8",
       "key": "servicoId",
       "value": "",
       "type": "string"
     },
     {
-      "id": "a4b1af1a-00fe-4dab-a150-88c4074168d2",
+      "id": "6a9c6b07-b3f2-4f68-9b80-47abdb66795b",
       "key": "servico2Id",
       "value": "",
       "type": "string"
     },
     {
-      "id": "aed8a4cd-9410-4c56-99ed-04b2a1f01531",
+      "id": "b846d7a3-9052-4912-a6c3-b94dfe247517",
       "key": "pecaId",
       "value": "",
       "type": "string"
     },
     {
-      "id": "82af8b90-9410-43b7-ace2-054c83c369b3",
+      "id": "b0f93530-344c-4886-bd74-9c0a59e5a599",
       "key": "peca2Id",
       "value": "",
       "type": "string"
     },
     {
-      "id": "522d727b-5e7d-4a89-8cfa-1fdb94a56bdb",
+      "id": "4647d4e4-21b9-4ccc-8d37-b0f258bc63b1",
       "key": "atendenteId",
       "value": "",
       "type": "string"
     },
     {
-      "id": "abb2aeb8-9473-4e53-8f14-3d6eee618ed2",
+      "id": "6bf80778-cc7e-446b-ae6e-164b6fd0e8b6",
       "key": "clienteId",
       "value": "",
       "type": "string"
     },
     {
-      "id": "99a11130-a330-4a51-ab2e-0e9c624d0c9e",
+      "id": "1aeacb49-3bdf-4136-8a65-38632228c67c",
       "key": "veiculoId",
       "value": "",
       "type": "string"
     },
     {
-      "id": "0e39abe1-e208-4023-901f-ced157edb3e0",
+      "id": "bd0b50f8-cd4d-471a-aa19-fabb2621010d",
       "key": "osId",
       "value": "",
       "type": "string"
     },
     {
-      "id": "92990cb8-d998-49d4-814f-3c74f9b287da",
+      "id": "719d5766-5877-415e-97dd-5edf03b4fcd1",
       "key": "osNumero",
       "value": "",
       "type": "string"
     },
     {
-      "id": "50c64beb-930c-4edb-bf69-85984fd4bf14",
+      "id": "8d0b56a0-f972-4aed-a70f-016e707ace27",
       "key": "itemServicoId",
       "value": "",
       "type": "string"
     },
     {
-      "id": "93c2830d-ae24-436f-b21a-37310330bd91",
+      "id": "efde5f73-0205-4937-a65d-56571bf9b6b1",
       "key": "itemPecaId",
       "value": "",
       "type": "string"
