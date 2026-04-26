@@ -39,6 +39,11 @@ public class OrdemDeServicoDTO {
     ) {
     }
 
+    public record IniciarExecucaoRequest(
+            @NotNull(message = "Atendente é obrigatório") UUID atendenteId
+    ) {
+    }
+
     public record StatusPublicoResponse(
             String numero,
             String status,

@@ -205,8 +205,12 @@ public class OrdemDeServicoService {
     }
 
     @Transactional
-    public OrdemDeServicoDTO.Response iniciarExecucao(UUID id) {
+    public OrdemDeServicoDTO.Response iniciarExecucao(UUID id, OrdemDeServicoDTO.IniciarExecucaoRequest request) {
         OrdemDeServico os = buscarComItens(id);
+        Atendente atendente = atendenteRepository.findById(request.atendenteId())
+                .orElseThrow(() -> new RecursoNaoEncontradoException(
+                        "Atendente não encontrado com id: " + request.atendenteId()));
+        os.setAtendente(atendente);
         os.transicionarPara(StatusOS.EM_EXECUCAO);
         os.getItensPeca().forEach(item ->
                 estoqueService.baixarEstoque(osId(os), item.getPeca().getId(), item.getQuantidade()));
@@ -243,9 +247,7 @@ public class OrdemDeServicoService {
     @Transactional
     public OrdemDeServicoDTO.StatusPublicoResponse aprovar(String numero) {
         OrdemDeServico os = buscarPorNumeroComItens(numero);
-        os.transicionarPara(StatusOS.EM_EXECUCAO);
-        os.getItensPeca().forEach(item ->
-                estoqueService.baixarEstoque(osId(os), item.getPeca().getId(), item.getQuantidade()));
+        os.transicionarPara(StatusOS.APROVADO);
         repository.save(os);
         return new OrdemDeServicoDTO.StatusPublicoResponse(
                 os.getNumero(), os.getStatus().name(), os.getValorTotal(),

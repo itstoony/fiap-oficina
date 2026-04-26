@@ -97,9 +97,11 @@ public class OrdemDeServicoAdminController {
     }
 
     @PostMapping("/{id}/iniciar-execucao")
-    @Operation(summary = "Iniciar execução (admin) — AGUARDANDO_APROVACAO → EM_EXECUCAO + baixa de estoque")
-    public ResponseEntity<OrdemDeServicoDTO.Response> iniciarExecucao(@PathVariable UUID id) {
-        return ResponseEntity.ok(service.iniciarExecucao(id));
+    @Operation(summary = "Iniciar execução — atribui atendente e transiciona APROVADO → EM_EXECUCAO")
+    public ResponseEntity<OrdemDeServicoDTO.Response> iniciarExecucao(
+            @PathVariable UUID id,
+            @Valid @RequestBody OrdemDeServicoDTO.IniciarExecucaoRequest request) {
+        return ResponseEntity.ok(service.iniciarExecucao(id, request));
     }
 
     @PostMapping("/{id}/finalizar")

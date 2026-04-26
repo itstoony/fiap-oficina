@@ -111,8 +111,9 @@ public class OrdemDeServico {
     }
 
     public void validarEdicaoPermitida() {
-        if (status == StatusOS.EM_EXECUCAO || status == StatusOS.FINALIZADA
-                || status == StatusOS.ENTREGUE || status == StatusOS.CANCELADA) {
+        if (status == StatusOS.APROVADO || status == StatusOS.EM_EXECUCAO
+                || status == StatusOS.FINALIZADA || status == StatusOS.ENTREGUE
+                || status == StatusOS.CANCELADA) {
             throw new br.com.fiap.oficina.shared.exception.RegraDeNegocioException(
                     "Não é possível modificar itens de uma OS com status " + status.name());
         }
