@@ -154,12 +154,14 @@ DELETE /api/admin/atendentes/{id}
 **Máquina de estados do `StatusOS`:**
 
 ```
-RECEBIDA → EM_DIAGNOSTICO → AGUARDANDO_APROVACAO → EM_EXECUCAO → FINALIZADA → ENTREGUE
-                                                  ↘
-                                               CANCELADA
+RECEBIDA → EM_DIAGNOSTICO → AGUARDANDO_APROVACAO → APROVADO → EM_EXECUCAO → FINALIZADA → ENTREGUE
+                                                  ↘         ↘
+                                               CANCELADA  CANCELADA
 ```
 
 Transições são unidirecionais. Qualquer tentativa de transição inválida retorna HTTP 422.
+
+O estado `APROVADO` é atingido quando o cliente aprova o orçamento (endpoint público). O admin então atribui um atendente e chama `iniciar-execucao` para transicionar para `EM_EXECUCAO`.
 
 **Entidades:**
 
@@ -175,9 +177,9 @@ Transições são unidirecionais. Qualquer tentativa de transição inválida re
 - `valorTotal` recalculado automaticamente a cada adição ou remoção de item
 - `dataInicioExecucao` registrada ao transicionar para `EM_EXECUCAO`
 - `dataFimExecucao` registrada ao transicionar para `FINALIZADA`
-- Ao iniciar execução: reservas de peças convertidas em baixas definitivas
+- Ao iniciar execução: atendente é atribuído e reservas de peças convertidas em baixas definitivas
 - Ao cancelar: todas as reservas de peças são liberadas
-- Edição de itens bloqueada após `EM_EXECUCAO`
+- Edição de itens bloqueada a partir de `APROVADO` (inclusive)
 
 **Endpoints admin** (exigem JWT):
 
@@ -192,7 +194,7 @@ Transições são unidirecionais. Qualquer tentativa de transição inválida re
 | `DELETE` | `/api/admin/ordens/{id}/pecas/{itemId}` | Remover peça (libera reserva) |
 | `POST` | `/api/admin/ordens/{id}/iniciar-diagnostico` | RECEBIDA → EM_DIAGNOSTICO |
 | `POST` | `/api/admin/ordens/{id}/enviar-orcamento` | EM_DIAGNOSTICO → AGUARDANDO_APROVACAO |
-| `POST` | `/api/admin/ordens/{id}/iniciar-execucao` | AGUARDANDO_APROVACAO → EM_EXECUCAO |
+| `POST` | `/api/admin/ordens/{id}/iniciar-execucao` | APROVADO → EM_EXECUCAO (requer `{"atendenteId": "<uuid>"}`) |
 | `POST` | `/api/admin/ordens/{id}/finalizar` | EM_EXECUCAO → FINALIZADA |
 | `POST` | `/api/admin/ordens/{id}/entregar` | FINALIZADA → ENTREGUE |
 | `POST` | `/api/admin/ordens/{id}/cancelar` | Cancelar OS |
@@ -514,9 +516,9 @@ Cobertura mínima configurada: **80%** nas classes de domínio (excluindo DTOs, 
 | Atendimento | `ClienteControllerTest` | MockMvc | 10 |
 | Atendimento | `VeiculoControllerTest` | MockMvc | 11 |
 | Atendimento | `AtendenteControllerTest` | MockMvc | 9 |
-| Execução | `StatusOSTest` | Unitário | 14 |
-| Execução | `OrdemDeServicoServiceTest` | Unitário | 14 |
-| Execução | `OrdemDeServicoAdminControllerTest` | MockMvc | 8 |
+| Execução | `StatusOSTest` | Unitário | 18 |
+| Execução | `OrdemDeServicoServiceTest` | Unitário | 15 |
+| Execução | `OrdemDeServicoAdminControllerTest` | MockMvc | 10 |
 | Execução | `OrdemDeServicoPublicControllerTest` | MockMvc | 5 |
 | Estoque | `PecaServiceTest` | Unitário | 12 |
 | Estoque | `PecaControllerTest` | MockMvc | 12 |
@@ -525,4 +527,4 @@ Cobertura mínima configurada: **80%** nas classes de domínio (excluindo DTOs, 
 | Administração | `RelatorioServiceTest` | Unitário | 4 |
 | Administração | `RelatorioControllerTest` | MockMvc | 2 |
 | Integração | `OficinaApplicationTests` | Spring | 1 |
-| **Total** | | | **150** |
+| **Total** | | | **157** |
