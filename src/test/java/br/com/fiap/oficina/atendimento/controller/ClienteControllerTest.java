@@ -3,6 +3,7 @@ package br.com.fiap.oficina.atendimento.controller;
 import br.com.fiap.oficina.atendimento.service.ClienteService;
 import br.com.fiap.oficina.atendimento.service.dto.ClienteDTO;
 import br.com.fiap.oficina.seguranca.config.SecurityConfig;
+import br.com.fiap.oficina.seguranca.service.JwtService;
 import br.com.fiap.oficina.shared.exception.RecursoNaoEncontradoException;
 import br.com.fiap.oficina.shared.exception.RegraDeNegocioException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,6 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -28,6 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(ClienteController.class)
 @Import(SecurityConfig.class)
+@WithMockUser
 class ClienteControllerTest {
 
     @Autowired
@@ -38,6 +42,12 @@ class ClienteControllerTest {
 
     @MockitoBean
     private ClienteService service;
+
+    @MockitoBean
+    private JwtService jwtService;
+
+    @MockitoBean
+    private UserDetailsService userDetailsService;
 
     @Test
     void cadastrar_comDadosValidos_deveRetornarCreated() throws Exception {
@@ -145,14 +155,8 @@ class ClienteControllerTest {
 
     private ClienteDTO.Response criarResponse(UUID id) {
         return new ClienteDTO.Response(
-                id,
-                "João Silva",
-                "joao@email.com",
-                "11999999999",
-                "529.982.247-25",
-                "CPF",
-                LocalDateTime.now(),
-                LocalDateTime.now()
+                id, "João Silva", "joao@email.com", "11999999999",
+                "529.982.247-25", "CPF", LocalDateTime.now(), LocalDateTime.now()
         );
     }
 }
