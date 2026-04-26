@@ -1,6 +1,9 @@
 package br.com.fiap.oficina.estoque.service;
 
+import br.com.fiap.oficina.estoque.domain.model.MovimentacaoEstoque;
 import br.com.fiap.oficina.estoque.domain.model.Peca;
+import br.com.fiap.oficina.estoque.domain.valueobject.TipoMovimentacao;
+import br.com.fiap.oficina.estoque.repository.MovimentacaoEstoqueRepository;
 import br.com.fiap.oficina.estoque.repository.PecaRepository;
 import br.com.fiap.oficina.shared.exception.RecursoNaoEncontradoException;
 import br.com.fiap.oficina.shared.exception.RegraDeNegocioException;
@@ -11,21 +14,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
-/**
- * Stub do EstoqueService — reserva e disponibilidade implementados com lógica básica.
- * Baixa definitiva e liberação de reservas serão implementadas no bounded context de Estoque.
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class EstoqueService {
 
     private final PecaRepository pecaRepository;
+    private final MovimentacaoEstoqueRepository movimentacaoRepository;
 
     @Transactional
     public void verificarDisponibilidadeEReservar(UUID pecaId, Integer quantidade, UUID osId) {
-        Peca peca = pecaRepository.findById(pecaId)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Peça não encontrada com id: " + pecaId));
+        Peca peca = buscarPeca(pecaId);
 
         if (peca.getQtdDisponivel() < quantidade) {
             throw new RegraDeNegocioException(
@@ -35,6 +34,8 @@ public class EstoqueService {
 
         peca.setQtdReservada(peca.getQtdReservada() + quantidade);
         pecaRepository.save(peca);
+
+        registrar(peca, TipoMovimentacao.RESERVA, quantidade, osId, "Reserva para OS " + osId);
         log.info("Reserva criada: {} unidades de '{}' para OS {}", quantidade, peca.getNome(), osId);
     }
 
@@ -44,19 +45,36 @@ public class EstoqueService {
             int novaReserva = Math.max(0, peca.getQtdReservada() - quantidade);
             peca.setQtdReservada(novaReserva);
             pecaRepository.save(peca);
+
+            registrar(peca, TipoMovimentacao.LIBERACAO_RESERVA, quantidade, osId, "Liberação de reserva da OS " + osId);
             log.info("Reserva liberada: {} unidades de '{}' da OS {}", quantidade, peca.getNome(), osId);
         });
     }
 
     @Transactional
     public void baixarEstoque(UUID osId, UUID pecaId, Integer quantidade) {
-        // TODO: implementar baixa definitiva com registro em MovimentacaoEstoque ao implementar o bounded context de Estoque
-        Peca peca = pecaRepository.findById(pecaId)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Peça não encontrada com id: " + pecaId));
+        Peca peca = buscarPeca(pecaId);
 
         peca.setQtdEstoque(peca.getQtdEstoque() - quantidade);
         peca.setQtdReservada(Math.max(0, peca.getQtdReservada() - quantidade));
         pecaRepository.save(peca);
+
+        registrar(peca, TipoMovimentacao.BAIXA, quantidade, osId, "Baixa definitiva para OS " + osId);
         log.info("Baixa de estoque: {} unidades de '{}' para OS {}", quantidade, peca.getNome(), osId);
+    }
+
+    private Peca buscarPeca(UUID pecaId) {
+        return pecaRepository.findById(pecaId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Peça não encontrada com id: " + pecaId));
+    }
+
+    private void registrar(Peca peca, TipoMovimentacao tipo, Integer quantidade, UUID osId, String observacao) {
+        movimentacaoRepository.save(MovimentacaoEstoque.builder()
+                .peca(peca)
+                .tipo(tipo)
+                .quantidade(quantidade)
+                .osId(osId)
+                .observacao(observacao)
+                .build());
     }
 }
