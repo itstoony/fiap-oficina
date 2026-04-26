@@ -59,7 +59,7 @@ public class OrdemDeServicoService {
 
     @Transactional(readOnly = true)
     public OrdemDeServicoDTO.StatusPublicoResponse buscarStatusPublico(String numero) {
-        OrdemDeServico os = repository.findByNumeroComItens(numero)
+        OrdemDeServico os = repository.findByNumero(numero)
                 .orElseThrow(() -> new RecursoNaoEncontradoException(
                         "Ordem de serviço não encontrada com número: " + numero));
         return new OrdemDeServicoDTO.StatusPublicoResponse(
@@ -276,15 +276,21 @@ public class OrdemDeServicoService {
     }
 
     private OrdemDeServico buscarComItens(UUID id) {
-        return repository.findByIdComItens(id)
+        OrdemDeServico os = repository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException(
                         "Ordem de serviço não encontrada com id: " + id));
+        os.getItensServico().size();
+        os.getItensPeca().size();
+        return os;
     }
 
     private OrdemDeServico buscarPorNumeroComItens(String numero) {
-        return repository.findByNumeroComItens(numero)
+        OrdemDeServico os = repository.findByNumero(numero)
                 .orElseThrow(() -> new RecursoNaoEncontradoException(
                         "Ordem de serviço não encontrada com número: " + numero));
+        os.getItensServico().size();
+        os.getItensPeca().size();
+        return os;
     }
 
     private UUID osId(OrdemDeServico os) {

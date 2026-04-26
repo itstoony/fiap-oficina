@@ -14,17 +14,6 @@ public interface OrdemDeServicoRepository extends JpaRepository<OrdemDeServico, 
 
     Optional<OrdemDeServico> findByNumero(String numero);
 
-    @Query("SELECT os FROM OrdemDeServico os " +
-           "LEFT JOIN FETCH os.itensServico is LEFT JOIN FETCH is.servico " +
-           "LEFT JOIN FETCH os.itensPeca ip LEFT JOIN FETCH ip.peca " +
-           "WHERE os.id = :id")
-    Optional<OrdemDeServico> findByIdComItens(@Param("id") UUID id);
-
-    @Query("SELECT os FROM OrdemDeServico os " +
-           "LEFT JOIN FETCH os.itensServico is LEFT JOIN FETCH is.servico " +
-           "LEFT JOIN FETCH os.itensPeca ip LEFT JOIN FETCH ip.peca " +
-           "WHERE os.numero = :numero")
-    Optional<OrdemDeServico> findByNumeroComItens(@Param("numero") String numero);
 
     @Query(value = "SELECT COALESCE(MAX(CAST(SUBSTRING(numero, 9, 5) AS INTEGER)), 0) " +
                    "FROM ordens_de_servico WHERE numero LIKE ?1",
