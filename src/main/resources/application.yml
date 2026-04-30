@@ -3,18 +3,21 @@ spring:
     name: oficina
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/oficina
-    username: oficina
-    password: oficina
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/oficina}
+    username: ${SPRING_DATASOURCE_USERNAME:oficina}
+    password: ${SPRING_DATASOURCE_PASSWORD:oficina}
 
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: validate
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
 
 springdoc:
   swagger-ui:
@@ -24,8 +27,8 @@ springdoc:
 
 oficina:
   jwt:
-    secret: chave-secreta-minimo-256-bits-para-o-jwt-do-sistema-oficina
-    expiracao: 86400000
+    secret: ${OFICINA_JWT_SECRET:chave-secreta-minimo-256-bits-para-o-jwt-do-sistema-oficina}
+    expiracao: ${OFICINA_JWT_EXPIRACAO:60000}
   admin:
     login: ${OFICINA_ADMIN_LOGIN:admin}
     senha: ${OFICINA_ADMIN_SENHA:admin123}
