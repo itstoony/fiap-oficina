@@ -28,7 +28,7 @@ springdoc:
 oficina:
   jwt:
     secret: ${OFICINA_JWT_SECRET:chave-secreta-minimo-256-bits-para-o-jwt-do-sistema-oficina}
-    expiracao: ${OFICINA_JWT_EXPIRACAO:60000}
+    expiracao: ${OFICINA_JWT_EXPIRACAO:3600000}
   admin:
     login: ${OFICINA_ADMIN_LOGIN:admin}
     senha: ${OFICINA_ADMIN_SENHA:admin123}
