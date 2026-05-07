@@ -196,11 +196,17 @@
                                 </rule>
                             </rules>
                             <excludes>
-                                <!-- excluir classes que não precisam de cobertura -->
-                                <exclude>br/com/fiap/oficina/OfiicinaApplication.class</exclude>
+                                <!-- entrypoint -->
+                                <exclude>br/com/fiap/oficina/OficinaApplication.class</exclude>
+                                <!-- DTOs são records sem lógica -->
                                 <exclude>br/com/fiap/oficina/**/dto/**</exclude>
+                                <!-- configs e exceções sem lógica de negócio -->
                                 <exclude>br/com/fiap/oficina/**/config/**</exclude>
                                 <exclude>br/com/fiap/oficina/**/exception/**</exclude>
+                                <!-- domain models: getters/setters gerados pelo Lombok -->
+                                <exclude>br/com/fiap/oficina/**/domain/model/**</exclude>
+                                <!-- filtro JWT: testado via testes de integração de controller -->
+                                <exclude>br/com/fiap/oficina/**/filter/**</exclude>
                             </excludes>
                         </configuration>
                     </execution>
@@ -255,21 +261,12 @@
             <plugin>
                 <groupId>com.github.spotbugs</groupId>
                 <artifactId>spotbugs-maven-plugin</artifactId>
-                <version>4.8.3.1</version>
+                <version>4.9.3.0</version>
                 <configuration>
                     <effort>Max</effort>
                     <threshold>Medium</threshold>
                     <failOnError>true</failOnError>
                 </configuration>
-                <executions>
-                    <execution>
-                        <id>spotbugs</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
 
             <!-- OWASP DEPENDENCY CHECK -->

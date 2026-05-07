@@ -55,7 +55,7 @@ public class MovimentacaoEstoque {
     private LocalDateTime dataMovimentacao;
 
     @PrePersist
-    private void prePersist() {
+    protected void prePersist() {
         dataMovimentacao = LocalDateTime.now();
     }
 }

@@ -1,0 +1,323 @@
+{
+  "info": {
+    "_postman_id": "31f798e7-ebad-41c2-b3ac-a9b839400c2a",
+    "name": "Oficina Atendimento API Copy",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Clientes",
+      "item": [
+        {
+          "name": "Cadastrar Cliente",
+          "id": "e0bfd19a-8a5e-4c6b-a448-770975d5c655",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nome\": \"João Silva\",\n    \"email\": \"joao@email.com\",\n    \"telefone\": \"11999999999\",\n    \"documento\": \"12345678901\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "clientes"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar Clientes",
+          "id": "b971b549-0601-446d-a8bf-effc31b2c85e",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "clientes"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Buscar Cliente por ID",
+          "id": "1613b879-9084-4bb1-bbdf-af85dab9c4e6",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/clientes/{{clienteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "clientes",
+                "{{clienteId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Buscar por Documento",
+          "id": "54c4c6c6-fc9b-4937-8d32-f6b2a204a161",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/clientes/documento/12345678901",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "clientes",
+                "documento",
+                "12345678901"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Atualizar Cliente",
+          "id": "9f5976d3-1a79-4d09-b717-52a4a80ad770",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nome\": \"João Silva Alterado\",\n    \"email\": \"joao.novo@email.com\",\n    \"telefone\": \"11988888888\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/clientes/{{clienteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "clientes",
+                "{{clienteId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Excluir Cliente",
+          "id": "3c06d002-aaaf-4ef3-8754-2e27731df82e",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/clientes/{{clienteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "clientes",
+                "{{clienteId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "60275d80-8a16-4555-8080-ca0160786ffa"
+    },
+    {
+      "name": "Veículos",
+      "item": [
+        {
+          "name": "Cadastrar Veículo",
+          "id": "fa3bb3c1-64f2-479f-8ed0-143d41467592",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"marca\": \"Toyota\",\n    \"modelo\": \"Corolla\",\n    \"ano\": 2024,\n    \"cor\": \"Prata\",\n    \"placa\": \"ABC1D23\",\n    \"clienteId\": \"{{clienteId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/veiculos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "veiculos"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar Veículos",
+          "id": "1893a172-9dd2-44b8-87c0-c3427fedf046",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/veiculos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "veiculos"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Buscar Veículo por Placa",
+          "id": "3c5eab95-0519-4691-b41a-e30414d66169",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/veiculos/placa/ABC1D23",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "veiculos",
+                "placa",
+                "ABC1D23"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar Veículos por Cliente",
+          "id": "a2a9b29a-6541-4fdb-a55a-4ed6619c5e7a",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/veiculos/cliente/{{clienteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "veiculos",
+                "cliente",
+                "{{clienteId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Atualizar Veículo",
+          "id": "576376a2-92e7-4217-884c-0d815f07fba0",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"marca\": \"Toyota\",\n    \"modelo\": \"Corolla Cross\",\n    \"ano\": 2025,\n    \"cor\": \"Branco\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/veiculos/{{veiculoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "veiculos",
+                "{{veiculoId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "dfa5b467-b3dd-47e2-b47e-9dbe4811ff47"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "id": "a105efe2-872f-4630-86e0-1794dceaf672",
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "id": "e8b4b042-b12e-413d-9417-340163e533e3",
+      "key": "accessToken",
+      "value": "seu_token_aqui",
+      "type": "string"
+    },
+    {
+      "id": "3827bb56-4409-45b8-a7e3-0e696215febd",
+      "key": "clienteId",
+      "value": "uuid-do-cliente",
+      "type": "string"
+    },
+    {
+      "id": "900a5352-7183-45aa-abc8-e814435d0b09",
+      "key": "veiculoId",
+      "value": "uuid-do-veiculo",
+      "type": "string"
+    }
+  ]
+}

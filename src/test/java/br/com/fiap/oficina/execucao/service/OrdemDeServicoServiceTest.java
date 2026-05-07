@@ -220,6 +220,130 @@ class OrdemDeServicoServiceTest {
     }
 
     // -------------------------------------------------------------------------
+    // LISTAGEM / BUSCA
+    // -------------------------------------------------------------------------
+
+    @Test
+    void listar_deveRetornarListaDeOrdens() {
+        OrdemDeServico os = criarOS(StatusOS.RECEBIDA);
+        when(repository.findAll()).thenReturn(java.util.List.of(os));
+
+        var result = service.listar();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).status()).isEqualTo("RECEBIDA");
+    }
+
+    @Test
+    void buscarPorId_osExistente_deveRetornarResponse() {
+        OrdemDeServico os = criarOS(StatusOS.RECEBIDA);
+        when(repository.findById(os.getId())).thenReturn(Optional.of(os));
+
+        var response = service.buscarPorId(os.getId());
+
+        assertThat(response.id()).isEqualTo(os.getId());
+    }
+
+    @Test
+    void buscarPorId_osInexistente_deveLancarExcecao() {
+        UUID id = UUID.randomUUID();
+        when(repository.findById(id)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.buscarPorId(id))
+                .isInstanceOf(RecursoNaoEncontradoException.class);
+    }
+
+    // -------------------------------------------------------------------------
+    // ENTREGAR
+    // -------------------------------------------------------------------------
+
+    @Test
+    void entregar_statusFinalizada_deveMudarParaEntregue() {
+        OrdemDeServico os = criarOS(StatusOS.FINALIZADA);
+        when(repository.findById(os.getId())).thenReturn(Optional.of(os));
+        when(repository.save(any())).thenReturn(os);
+
+        var response = service.entregar(os.getId());
+
+        assertThat(response.status()).isEqualTo("ENTREGUE");
+    }
+
+    // -------------------------------------------------------------------------
+    // REMOÇÃO DE SERVIÇOS / PEÇAS
+    // -------------------------------------------------------------------------
+
+    @Test
+    void removerServico_itemExistente_deveRemoverERecalcularValor() {
+        OrdemDeServico os = criarOS(StatusOS.EM_DIAGNOSTICO);
+        UUID servicoId = UUID.randomUUID();
+        Servico servico = Servico.builder()
+                .id(servicoId).nome("Alinhamento").precoBase(new BigDecimal("100.00")).build();
+
+        // adiciona item diretamente na lista
+        br.com.fiap.oficina.execucao.domain.model.ItemServico item = br.com.fiap.oficina.execucao.domain.model.ItemServico.builder()
+                .id(UUID.randomUUID()).ordemDeServico(os).servico(servico)
+                .quantidade(1).precoUnitario(new BigDecimal("100.00")).build();
+        os.getItensServico().add(item);
+        os.recalcularValorTotal();
+        UUID itemId = item.getId();
+
+        when(repository.findById(os.getId())).thenReturn(Optional.of(os));
+        when(repository.save(any())).thenReturn(os);
+
+        service.removerServico(os.getId(), itemId);
+
+        assertThat(os.getItensServico()).isEmpty();
+        assertThat(os.getValorTotal()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    void adicionarPeca_osEmDiagnostico_deveAdicionarItemEReservarEstoque() {
+        OrdemDeServico os = criarOS(StatusOS.EM_DIAGNOSTICO);
+        UUID pecaId = UUID.randomUUID();
+        Peca peca = Peca.builder()
+                .id(pecaId).nome("Filtro").codigo("F001")
+                .precoUnitario(new BigDecimal("45.90"))
+                .qtdEstoque(10).qtdReservada(0).qtdMinima(2)
+                .build();
+
+        when(repository.findById(os.getId())).thenReturn(Optional.of(os));
+        when(pecaRepository.findById(pecaId)).thenReturn(Optional.of(peca));
+        when(repository.save(any())).thenReturn(os);
+
+        service.adicionarPeca(os.getId(), new ItemPecaDTO.AdicionarRequest(pecaId, 2));
+
+        assertThat(os.getItensPeca()).hasSize(1);
+        assertThat(os.getValorTotal()).isEqualByComparingTo("91.80");
+        verify(estoqueService).verificarDisponibilidadeEReservar(eq(pecaId), eq(2), eq(os.getId()));
+    }
+
+    @Test
+    void removerPeca_itemExistente_deveRemoverELiberarReserva() {
+        OrdemDeServico os = criarOS(StatusOS.EM_DIAGNOSTICO);
+        UUID pecaId = UUID.randomUUID();
+        Peca peca = Peca.builder()
+                .id(pecaId).nome("Filtro").codigo("F001")
+                .precoUnitario(new BigDecimal("45.90"))
+                .qtdEstoque(10).qtdReservada(2).qtdMinima(2)
+                .build();
+
+        br.com.fiap.oficina.execucao.domain.model.ItemPeca itemPeca = br.com.fiap.oficina.execucao.domain.model.ItemPeca.builder()
+                .id(UUID.randomUUID()).ordemDeServico(os).peca(peca)
+                .quantidade(2).precoUnitario(new BigDecimal("45.90")).build();
+        os.getItensPeca().add(itemPeca);
+        os.recalcularValorTotal();
+        UUID itemId = itemPeca.getId();
+
+        when(repository.findById(os.getId())).thenReturn(Optional.of(os));
+        when(repository.save(any())).thenReturn(os);
+
+        service.removerPeca(os.getId(), itemId);
+
+        assertThat(os.getItensPeca()).isEmpty();
+        verify(estoqueService).liberarReserva(eq(pecaId), eq(2), eq(os.getId()));
+    }
+
+    // -------------------------------------------------------------------------
     // PÚBLICO
     // -------------------------------------------------------------------------
 

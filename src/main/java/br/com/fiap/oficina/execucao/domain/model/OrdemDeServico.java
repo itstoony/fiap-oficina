@@ -94,7 +94,7 @@ public class OrdemDeServico {
     private LocalDateTime atualizadoEm;
 
     @PrePersist
-    private void prePersist() {
+    protected void prePersist() {
         criadoEm = LocalDateTime.now();
         atualizadoEm = LocalDateTime.now();
         if (dataAbertura == null) {
@@ -109,7 +109,7 @@ public class OrdemDeServico {
     }
 
     @PreUpdate
-    private void preUpdate() {
+    protected void preUpdate() {
         atualizadoEm = LocalDateTime.now();
     }
 

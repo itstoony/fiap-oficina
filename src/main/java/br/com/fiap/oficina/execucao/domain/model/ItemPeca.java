@@ -56,13 +56,13 @@ public class ItemPeca {
     private LocalDateTime atualizadoEm;
 
     @PrePersist
-    private void prePersist() {
+    protected void prePersist() {
         criadoEm = LocalDateTime.now();
         atualizadoEm = LocalDateTime.now();
     }
 
     @PreUpdate
-    private void preUpdate() {
+    protected void preUpdate() {
         atualizadoEm = LocalDateTime.now();
     }
 }

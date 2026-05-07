@@ -144,6 +144,82 @@ class OrdemDeServicoAdminControllerTest {
                 .andExpect(jsonPath("$.status").value("CANCELADA"));
     }
 
+    @Test
+    void enviarOrcamento_osExistente_deveRetornarOk() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(service.enviarOrcamento(id)).thenReturn(criarResponse("AGUARDANDO_APROVACAO"));
+
+        mockMvc.perform(post("/api/admin/ordens/{id}/enviar-orcamento", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("AGUARDANDO_APROVACAO"));
+    }
+
+    @Test
+    void finalizar_osExistente_deveRetornarOk() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(service.finalizar(id)).thenReturn(criarResponse("FINALIZADA"));
+
+        mockMvc.perform(post("/api/admin/ordens/{id}/finalizar", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("FINALIZADA"));
+    }
+
+    @Test
+    void entregar_osExistente_deveRetornarOk() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(service.entregar(id)).thenReturn(criarResponse("ENTREGUE"));
+
+        mockMvc.perform(post("/api/admin/ordens/{id}/entregar", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ENTREGUE"));
+    }
+
+    @Test
+    void adicionarServico_comDadosValidos_deveRetornarOk() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(service.adicionarServico(eq(id), any())).thenReturn(criarResponse("RECEBIDA"));
+
+        var body = "{\"servicoId\": \"" + UUID.randomUUID() + "\", \"quantidade\": 1}";
+        mockMvc.perform(post("/api/admin/ordens/{id}/servicos", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.numero").value("OS-2026-00001"));
+    }
+
+    @Test
+    void adicionarPeca_comDadosValidos_deveRetornarOk() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(service.adicionarPeca(eq(id), any())).thenReturn(criarResponse("RECEBIDA"));
+
+        var body = "{\"pecaId\": \"" + UUID.randomUUID() + "\", \"quantidade\": 1}";
+        mockMvc.perform(post("/api/admin/ordens/{id}/pecas", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.numero").value("OS-2026-00001"));
+    }
+
+    @Test
+    void removerServico_deveRetornarOk() throws Exception {
+        UUID id = UUID.randomUUID();
+        UUID itemId = UUID.randomUUID();
+        when(service.removerServico(id, itemId)).thenReturn(criarResponse("RECEBIDA"));
+
+        mockMvc.perform(delete("/api/admin/ordens/{id}/servicos/{itemId}", id, itemId))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void removerPeca_deveRetornarOk() throws Exception {
+        UUID id = UUID.randomUUID();
+        UUID itemId = UUID.randomUUID();
+        when(service.removerPeca(id, itemId)).thenReturn(criarResponse("RECEBIDA"));
+
+        mockMvc.perform(delete("/api/admin/ordens/{id}/pecas/{itemId}", id, itemId))
+                .andExpect(status().isOk());
+    }
+
     private OrdemDeServicoDTO.Response criarResponse(String status) {
         return new OrdemDeServicoDTO.Response(
                 UUID.randomUUID(), "OS-2026-00001", status,

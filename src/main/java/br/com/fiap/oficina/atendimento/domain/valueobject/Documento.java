@@ -52,8 +52,8 @@ public class Documento {
             soma += (cpf.charAt(i) - '0') * (10 - i);
         }
         int resto = 11 - (soma % 11);
-        int digito1 = (resto >= 10) ? 0 : resto;
-        if (digito1 != (cpf.charAt(9) - '0')) {
+        int digito1 = resto >= 10 ? 0 : resto;
+        if (digito1 != cpf.charAt(9) - '0') {
             return false;
         }
 
@@ -62,8 +62,8 @@ public class Documento {
             soma += (cpf.charAt(i) - '0') * (11 - i);
         }
         resto = 11 - (soma % 11);
-        int digito2 = (resto >= 10) ? 0 : resto;
-        return digito2 == (cpf.charAt(10) - '0');
+        int digito2 = resto >= 10 ? 0 : resto;
+        return digito2 == cpf.charAt(10) - '0';
     }
 
     private static boolean isValidCnpj(String cnpj) {
@@ -77,8 +77,8 @@ public class Documento {
             soma += (cnpj.charAt(i) - '0') * pesos1[i];
         }
         int resto = soma % 11;
-        int digito1 = (resto < 2) ? 0 : 11 - resto;
-        if (digito1 != (cnpj.charAt(12) - '0')) {
+        int digito1 = resto < 2 ? 0 : 11 - resto;
+        if (digito1 != cnpj.charAt(12) - '0') {
             return false;
         }
 
@@ -88,8 +88,8 @@ public class Documento {
             soma += (cnpj.charAt(i) - '0') * pesos2[i];
         }
         resto = soma % 11;
-        int digito2 = (resto < 2) ? 0 : 11 - resto;
-        return digito2 == (cnpj.charAt(13) - '0');
+        int digito2 = resto < 2 ? 0 : 11 - resto;
+        return digito2 == cnpj.charAt(13) - '0';
     }
 
     public String getNumero() {
