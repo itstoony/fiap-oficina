@@ -4,8 +4,26 @@ import br.com.fiap.oficina.atendimento.domain.model.Atendente;
 import br.com.fiap.oficina.atendimento.domain.model.Cliente;
 import br.com.fiap.oficina.atendimento.domain.model.Veiculo;
 import br.com.fiap.oficina.execucao.domain.valueobject.StatusOS;
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -79,9 +97,15 @@ public class OrdemDeServico {
     private void prePersist() {
         criadoEm = LocalDateTime.now();
         atualizadoEm = LocalDateTime.now();
-        if (dataAbertura == null) dataAbertura = LocalDateTime.now();
-        if (status == null) status = StatusOS.RECEBIDA;
-        if (valorTotal == null) valorTotal = BigDecimal.ZERO;
+        if (dataAbertura == null) {
+            dataAbertura = LocalDateTime.now();
+        }
+        if (status == null) {
+            status = StatusOS.RECEBIDA;
+        }
+        if (valorTotal == null) {
+            valorTotal = BigDecimal.ZERO;
+        }
     }
 
     @PreUpdate

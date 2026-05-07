@@ -6,5 +6,5 @@ public class RelatorioDTO {
             int totalOrdens,
             long mediaMinutos,
             String mediaFormatada
-    ) {}
+    ) { }
 }

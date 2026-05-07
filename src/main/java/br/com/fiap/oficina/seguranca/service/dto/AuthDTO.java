@@ -7,7 +7,7 @@ public class AuthDTO {
     public record LoginRequest(
             @NotBlank String login,
             @NotBlank String senha
-    ) {}
+    ) { }
 
-    public record LoginResponse(String token) {}
+    public record LoginResponse(String token) { }
 }

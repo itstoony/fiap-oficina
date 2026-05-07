@@ -12,13 +12,13 @@ public class AtendenteDTO {
             @NotBlank(message = "Nome é obrigatório") String nome,
             @NotBlank(message = "Email é obrigatório") @Email(message = "Email inválido") String email,
             @NotBlank(message = "Telefone é obrigatório") String telefone
-    ) {}
+    ) { }
 
     public record AtualizarRequest(
             @NotBlank(message = "Nome é obrigatório") String nome,
             @NotBlank(message = "Email é obrigatório") @Email(message = "Email inválido") String email,
             @NotBlank(message = "Telefone é obrigatório") String telefone
-    ) {}
+    ) { }
 
     public record Response(
             UUID id,
@@ -27,5 +27,5 @@ public class AtendenteDTO {
             String telefone,
             LocalDateTime criadoEm,
             LocalDateTime atualizadoEm
-    ) {}
+    ) { }
 }

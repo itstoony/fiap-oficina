@@ -14,13 +14,13 @@ public class ServicoDTO {
             @NotBlank String nome,
             @NotBlank String descricao,
             @NotNull @Positive BigDecimal precoBase
-    ) {}
+    ) { }
 
     public record AtualizarRequest(
             @NotBlank String nome,
             @NotBlank String descricao,
             @NotNull @Positive BigDecimal precoBase
-    ) {}
+    ) { }
 
     public record Response(
             UUID id,
@@ -29,5 +29,5 @@ public class ServicoDTO {
             BigDecimal precoBase,
             LocalDateTime criadoEm,
             LocalDateTime atualizadoEm
-    ) {}
+    ) { }
 }

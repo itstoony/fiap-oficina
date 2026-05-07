@@ -18,18 +18,18 @@ public class PecaDTO {
             @NotNull @Positive BigDecimal precoUnitario,
             @NotNull @Min(0) Integer qtdEstoque,
             @NotNull @Min(0) Integer qtdMinima
-    ) {}
+    ) { }
 
     public record AtualizarRequest(
             @NotBlank String nome,
             @NotNull @Positive BigDecimal precoUnitario,
             @NotNull @Min(0) Integer qtdMinima
-    ) {}
+    ) { }
 
     public record EntradaRequest(
             @NotNull @Min(1) Integer quantidade,
             String observacao
-    ) {}
+    ) { }
 
     public record Response(
             UUID id,
@@ -43,7 +43,7 @@ public class PecaDTO {
             boolean estoqueCritico,
             LocalDateTime criadoEm,
             LocalDateTime atualizadoEm
-    ) {}
+    ) { }
 
     public record MovimentacaoResponse(
             UUID id,
@@ -52,5 +52,5 @@ public class PecaDTO {
             UUID osId,
             String observacao,
             LocalDateTime dataMovimentacao
-    ) {}
+    ) { }
 }

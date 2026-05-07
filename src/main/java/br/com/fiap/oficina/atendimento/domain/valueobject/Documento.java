@@ -43,7 +43,9 @@ public class Documento {
     }
 
     private static boolean isValidCpf(String cpf) {
-        if (cpf.chars().distinct().count() == 1) return false;
+        if (cpf.chars().distinct().count() == 1) {
+            return false;
+        }
 
         int soma = 0;
         for (int i = 0; i < 9; i++) {
@@ -51,7 +53,9 @@ public class Documento {
         }
         int resto = 11 - (soma % 11);
         int digito1 = (resto >= 10) ? 0 : resto;
-        if (digito1 != (cpf.charAt(9) - '0')) return false;
+        if (digito1 != (cpf.charAt(9) - '0')) {
+            return false;
+        }
 
         soma = 0;
         for (int i = 0; i < 10; i++) {
@@ -63,7 +67,9 @@ public class Documento {
     }
 
     private static boolean isValidCnpj(String cnpj) {
-        if (cnpj.chars().distinct().count() == 1) return false;
+        if (cnpj.chars().distinct().count() == 1) {
+            return false;
+        }
 
         int[] pesos1 = {5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2};
         int soma = 0;
@@ -72,7 +78,9 @@ public class Documento {
         }
         int resto = soma % 11;
         int digito1 = (resto < 2) ? 0 : 11 - resto;
-        if (digito1 != (cnpj.charAt(12) - '0')) return false;
+        if (digito1 != (cnpj.charAt(12) - '0')) {
+            return false;
+        }
 
         int[] pesos2 = {6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2};
         soma = 0;
