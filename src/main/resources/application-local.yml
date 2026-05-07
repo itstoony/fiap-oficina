@@ -1,0 +1,27 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:oficina;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+
+  flyway:
+    enabled: false
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+oficina:
+  seguranca:
+    bcrypt-strength: 4

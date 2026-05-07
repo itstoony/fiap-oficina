@@ -99,11 +99,20 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- H2 apenas para testes -->
+        <!-- H2 — local dev e testes -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>test</scope>
+        </dependency>
+
+        <!-- ===== FLYWAY ===== -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
 
     </dependencies>
