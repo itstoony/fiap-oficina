@@ -1,8 +1,9 @@
 package br.com.fiap.oficina.administracao.service;
 
+import br.com.fiap.oficina.administracao.application.port.in.ServicoDTO;
+import br.com.fiap.oficina.administracao.application.port.out.ServicoRepositoryPort;
+import br.com.fiap.oficina.administracao.application.service.ServicoService;
 import br.com.fiap.oficina.administracao.domain.model.Servico;
-import br.com.fiap.oficina.administracao.repository.ServicoRepository;
-import br.com.fiap.oficina.administracao.service.dto.ServicoDTO;
 import br.com.fiap.oficina.shared.exception.RecursoNaoEncontradoException;
 import br.com.fiap.oficina.shared.exception.RegraDeNegocioException;
 import org.junit.jupiter.api.Test;
@@ -26,15 +27,15 @@ import static org.mockito.Mockito.*;
 class ServicoServiceTest {
 
     @Mock
-    private ServicoRepository servicoRepository;
+    private ServicoRepositoryPort servicoRepository;
 
     @InjectMocks
     private ServicoService service;
 
     @Test
     void cadastrar_comDadosValidos_deveSalvarERetornarResponse() {
-        when(servicoRepository.existsByNome("Troca de Óleo")).thenReturn(false);
-        when(servicoRepository.save(any(Servico.class))).thenAnswer(inv -> {
+        when(servicoRepository.existePorNome("Troca de Óleo")).thenReturn(false);
+        when(servicoRepository.salvar(any(Servico.class))).thenAnswer(inv -> {
             Servico s = inv.getArgument(0);
             return Servico.builder().id(UUID.randomUUID()).nome(s.getNome())
                     .descricao(s.getDescricao()).precoBase(s.getPrecoBase())
@@ -46,12 +47,12 @@ class ServicoServiceTest {
 
         assertThat(response.nome()).isEqualTo("Troca de Óleo");
         assertThat(response.precoBase()).isEqualByComparingTo("120.00");
-        verify(servicoRepository).save(any(Servico.class));
+        verify(servicoRepository).salvar(any(Servico.class));
     }
 
     @Test
     void cadastrar_comNomeDuplicado_deveLancarRegraDeNegocioException() {
-        when(servicoRepository.existsByNome("Troca de Óleo")).thenReturn(true);
+        when(servicoRepository.existePorNome("Troca de Óleo")).thenReturn(true);
 
         var request = new ServicoDTO.CadastrarRequest("Troca de Óleo", "Desc", new BigDecimal("120.00"));
 
@@ -62,7 +63,7 @@ class ServicoServiceTest {
 
     @Test
     void listar_deveRetornarTodosOsServicos() {
-        when(servicoRepository.findAll()).thenReturn(List.of(
+        when(servicoRepository.listarTodos()).thenReturn(List.of(
                 criarServicoMock(UUID.randomUUID(), "Troca de Óleo"),
                 criarServicoMock(UUID.randomUUID(), "Alinhamento")
         ));
@@ -75,7 +76,7 @@ class ServicoServiceTest {
     @Test
     void buscarPorId_servicoExistente_deveRetornarResponse() {
         UUID id = UUID.randomUUID();
-        when(servicoRepository.findById(id)).thenReturn(Optional.of(criarServicoMock(id, "Troca de Óleo")));
+        when(servicoRepository.buscarPorId(id)).thenReturn(Optional.of(criarServicoMock(id, "Troca de Óleo")));
 
         var response = service.buscarPorId(id);
 
@@ -86,7 +87,7 @@ class ServicoServiceTest {
     @Test
     void buscarPorId_servicoInexistente_deveLancarRecursoNaoEncontradoException() {
         UUID id = UUID.randomUUID();
-        when(servicoRepository.findById(id)).thenReturn(Optional.empty());
+        when(servicoRepository.buscarPorId(id)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.buscarPorId(id))
                 .isInstanceOf(RecursoNaoEncontradoException.class);
@@ -96,23 +97,23 @@ class ServicoServiceTest {
     void atualizar_comMesmoNome_deveAtualizarSemVerificarDuplicata() {
         UUID id = UUID.randomUUID();
         Servico servico = criarServicoMock(id, "Troca de Óleo");
-        when(servicoRepository.findById(id)).thenReturn(Optional.of(servico));
-        when(servicoRepository.save(servico)).thenReturn(servico);
+        when(servicoRepository.buscarPorId(id)).thenReturn(Optional.of(servico));
+        when(servicoRepository.salvar(servico)).thenReturn(servico);
 
         var request = new ServicoDTO.AtualizarRequest("Troca de Óleo", "Nova descrição", new BigDecimal("150.00"));
         service.atualizar(id, request);
 
         assertThat(servico.getDescricao()).isEqualTo("Nova descrição");
         assertThat(servico.getPrecoBase()).isEqualByComparingTo("150.00");
-        verify(servicoRepository, never()).existsByNome(any());
+        verify(servicoRepository, never()).existePorNome(any());
     }
 
     @Test
     void atualizar_comNomeDiferenteDuplicado_deveLancarRegraDeNegocioException() {
         UUID id = UUID.randomUUID();
         Servico servico = criarServicoMock(id, "Troca de Óleo");
-        when(servicoRepository.findById(id)).thenReturn(Optional.of(servico));
-        when(servicoRepository.existsByNome("Alinhamento")).thenReturn(true);
+        when(servicoRepository.buscarPorId(id)).thenReturn(Optional.of(servico));
+        when(servicoRepository.existePorNome("Alinhamento")).thenReturn(true);
 
         var request = new ServicoDTO.AtualizarRequest("Alinhamento", "Desc", new BigDecimal("80.00"));
 
@@ -125,17 +126,17 @@ class ServicoServiceTest {
     void excluir_servicoExistente_deveChamarDelete() {
         UUID id = UUID.randomUUID();
         Servico servico = criarServicoMock(id, "Troca de Óleo");
-        when(servicoRepository.findById(id)).thenReturn(Optional.of(servico));
+        when(servicoRepository.buscarPorId(id)).thenReturn(Optional.of(servico));
 
         service.excluir(id);
 
-        verify(servicoRepository).delete(servico);
+        verify(servicoRepository).deletar(servico);
     }
 
     @Test
     void excluir_servicoInexistente_deveLancarRecursoNaoEncontradoException() {
         UUID id = UUID.randomUUID();
-        when(servicoRepository.findById(id)).thenReturn(Optional.empty());
+        when(servicoRepository.buscarPorId(id)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.excluir(id))
                 .isInstanceOf(RecursoNaoEncontradoException.class);
