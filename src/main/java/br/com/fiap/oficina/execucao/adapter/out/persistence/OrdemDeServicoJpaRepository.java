@@ -22,4 +22,20 @@ public interface OrdemDeServicoJpaRepository extends JpaRepository<OrdemDeServic
     @Query("SELECT os FROM OrdemDeServico os WHERE os.status IN :statuses " +
            "AND os.dataInicioExecucao IS NOT NULL AND os.dataFimExecucao IS NOT NULL")
     List<OrdemDeServico> findFinalizadasComDatas(@Param("statuses") List<StatusOS> statuses);
+
+    @Query("""
+            SELECT o FROM OrdemDeServico o
+            WHERE o.ativo = true
+            ORDER BY
+              CASE o.status
+                WHEN 'EM_EXECUCAO'          THEN 1
+                WHEN 'AGUARDANDO_APROVACAO' THEN 2
+                WHEN 'APROVADO'             THEN 3
+                WHEN 'EM_DIAGNOSTICO'       THEN 4
+                WHEN 'RECEBIDA'             THEN 5
+                ELSE 6
+              END ASC,
+              o.dataAbertura ASC
+            """)
+    List<OrdemDeServico> findAllAtivasOrdenadas();
 }

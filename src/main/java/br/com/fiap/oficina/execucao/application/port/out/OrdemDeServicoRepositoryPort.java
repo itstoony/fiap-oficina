@@ -14,6 +14,8 @@ public interface OrdemDeServicoRepositoryPort {
 
     OrdemDeServico buscarPorNumero(String numero);
 
+    List<OrdemDeServico> listarAtivasOrdenadas();
+
     List<OrdemDeServico> listarTodas();
 
     int buscarProximoSequencial(String prefixo);

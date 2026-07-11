@@ -69,6 +69,10 @@ public class OrdemDeServico {
     @Column
     private LocalDateTime dataFimExecucao;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean ativo = true;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime criadoEm;
 
@@ -96,6 +100,9 @@ public class OrdemDeServico {
         }
         if (novoStatus == StatusOS.FINALIZADA) {
             this.dataFimExecucao = LocalDateTime.now();
+        }
+        if (novoStatus == StatusOS.FINALIZADA || novoStatus == StatusOS.ENTREGUE || novoStatus == StatusOS.CANCELADA) {
+            this.ativo = false;
         }
         this.status = novoStatus;
     }
