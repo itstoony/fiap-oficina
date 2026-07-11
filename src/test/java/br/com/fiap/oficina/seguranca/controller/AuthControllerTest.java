@@ -1,9 +1,10 @@
 package br.com.fiap.oficina.seguranca.controller;
 
+import br.com.fiap.oficina.seguranca.adapter.in.web.AuthController;
+import br.com.fiap.oficina.seguranca.application.port.in.AuthDTO;
+import br.com.fiap.oficina.seguranca.application.port.in.AuthUseCase;
+import br.com.fiap.oficina.seguranca.application.service.JwtService;
 import br.com.fiap.oficina.seguranca.config.SecurityConfig;
-import br.com.fiap.oficina.seguranca.service.AuthService;
-import br.com.fiap.oficina.seguranca.service.JwtService;
-import br.com.fiap.oficina.seguranca.service.dto.AuthDTO;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +28,7 @@ class AuthControllerTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
 
-    @MockitoBean private AuthService authService;
+    @MockitoBean private AuthUseCase authService;
     @MockitoBean private JwtService jwtService;
     @MockitoBean private UserDetailsService userDetailsService;
 

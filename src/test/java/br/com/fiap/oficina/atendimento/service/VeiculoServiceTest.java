@@ -1,11 +1,13 @@
 package br.com.fiap.oficina.atendimento.service;
 
+import br.com.fiap.oficina.atendimento.application.port.in.ClienteUseCase;
+import br.com.fiap.oficina.atendimento.application.port.in.VeiculoDTO;
+import br.com.fiap.oficina.atendimento.application.port.out.VeiculoRepositoryPort;
+import br.com.fiap.oficina.atendimento.application.service.VeiculoService;
 import br.com.fiap.oficina.atendimento.domain.model.Cliente;
 import br.com.fiap.oficina.atendimento.domain.model.Veiculo;
 import br.com.fiap.oficina.atendimento.domain.valueobject.Documento;
 import br.com.fiap.oficina.atendimento.domain.valueobject.Placa;
-import br.com.fiap.oficina.atendimento.repository.VeiculoRepository;
-import br.com.fiap.oficina.atendimento.service.dto.VeiculoDTO;
 import br.com.fiap.oficina.shared.exception.RecursoNaoEncontradoException;
 import br.com.fiap.oficina.shared.exception.RegraDeNegocioException;
 import org.junit.jupiter.api.Test;
@@ -27,10 +29,10 @@ import static org.mockito.Mockito.*;
 class VeiculoServiceTest {
 
     @Mock
-    private VeiculoRepository veiculoRepository;
+    private VeiculoRepositoryPort veiculoRepository;
 
     @Mock
-    private ClienteService clienteService;
+    private ClienteUseCase clienteService;
 
     @InjectMocks
     private VeiculoService service;
@@ -40,9 +42,9 @@ class VeiculoServiceTest {
         UUID clienteId = UUID.randomUUID();
         Cliente cliente = criarClienteMock(clienteId);
 
-        when(veiculoRepository.existsByPlacaValor("ABC1234")).thenReturn(false);
+        when(veiculoRepository.existePorPlacaValor("ABC1234")).thenReturn(false);
         when(clienteService.buscarEntidade(clienteId)).thenReturn(cliente);
-        when(veiculoRepository.save(any(Veiculo.class))).thenAnswer(inv -> {
+        when(veiculoRepository.salvar(any(Veiculo.class))).thenAnswer(inv -> {
             Veiculo v = inv.getArgument(0);
             return Veiculo.builder()
                     .id(UUID.randomUUID())
@@ -61,7 +63,7 @@ class VeiculoServiceTest {
         assertThat(response.marca()).isEqualTo("Toyota");
         assertThat(response.placa()).isEqualTo("ABC1234");
         assertThat(response.clienteId()).isEqualTo(clienteId);
-        verify(veiculoRepository).save(any(Veiculo.class));
+        verify(veiculoRepository).salvar(any(Veiculo.class));
     }
 
     @Test
@@ -69,9 +71,9 @@ class VeiculoServiceTest {
         UUID clienteId = UUID.randomUUID();
         Cliente cliente = criarClienteMock(clienteId);
 
-        when(veiculoRepository.existsByPlacaValor("ABC1D23")).thenReturn(false);
+        when(veiculoRepository.existePorPlacaValor("ABC1D23")).thenReturn(false);
         when(clienteService.buscarEntidade(clienteId)).thenReturn(cliente);
-        when(veiculoRepository.save(any())).thenAnswer(inv -> {
+        when(veiculoRepository.salvar(any())).thenAnswer(inv -> {
             Veiculo v = inv.getArgument(0);
             return Veiculo.builder().id(UUID.randomUUID()).marca(v.getMarca()).modelo(v.getModelo())
                     .ano(v.getAno()).cor(v.getCor()).placa(v.getPlaca()).cliente(v.getCliente()).build();
@@ -86,7 +88,7 @@ class VeiculoServiceTest {
     @Test
     void cadastrar_comPlacaDuplicada_deveLancarRegraDeNegocioException() {
         UUID clienteId = UUID.randomUUID();
-        when(veiculoRepository.existsByPlacaValor("ABC1234")).thenReturn(true);
+        when(veiculoRepository.existePorPlacaValor("ABC1234")).thenReturn(true);
 
         var request = new VeiculoDTO.CadastrarRequest("Toyota", "Corolla", 2020, "Prata", "ABC-1234", clienteId);
 
@@ -109,7 +111,7 @@ class VeiculoServiceTest {
     void buscarPorId_veiculoExistente_deveRetornarResponse() {
         UUID id = UUID.randomUUID();
         Cliente cliente = criarClienteMock(UUID.randomUUID());
-        when(veiculoRepository.findById(id)).thenReturn(Optional.of(criarVeiculoMock(id, cliente)));
+        when(veiculoRepository.buscarPorId(id)).thenReturn(Optional.of(criarVeiculoMock(id, cliente)));
 
         var response = service.buscarPorId(id);
 
@@ -119,7 +121,7 @@ class VeiculoServiceTest {
     @Test
     void buscarPorId_veiculoInexistente_deveLancarRecursoNaoEncontradoException() {
         UUID id = UUID.randomUUID();
-        when(veiculoRepository.findById(id)).thenReturn(Optional.empty());
+        when(veiculoRepository.buscarPorId(id)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.buscarPorId(id))
                 .isInstanceOf(RecursoNaoEncontradoException.class);
@@ -129,7 +131,7 @@ class VeiculoServiceTest {
     void buscarPorPlaca_veiculoExistente_deveRetornarResponse() {
         UUID id = UUID.randomUUID();
         Cliente cliente = criarClienteMock(UUID.randomUUID());
-        when(veiculoRepository.findByPlacaValor("ABC1234"))
+        when(veiculoRepository.buscarPorPlacaValor("ABC1234"))
                 .thenReturn(Optional.of(criarVeiculoMock(id, cliente)));
 
         var response = service.buscarPorPlaca("ABC-1234");
@@ -141,7 +143,7 @@ class VeiculoServiceTest {
     void buscarPorCliente_deveRetornarApenasSeuVeiculos() {
         UUID clienteId = UUID.randomUUID();
         Cliente cliente = criarClienteMock(clienteId);
-        when(veiculoRepository.findByClienteId(clienteId))
+        when(veiculoRepository.buscarPorClienteId(clienteId))
                 .thenReturn(List.of(criarVeiculoMock(UUID.randomUUID(), cliente)));
 
         var result = service.buscarPorCliente(clienteId);
@@ -155,11 +157,11 @@ class VeiculoServiceTest {
         UUID id = UUID.randomUUID();
         Cliente cliente = criarClienteMock(UUID.randomUUID());
         Veiculo veiculo = criarVeiculoMock(id, cliente);
-        when(veiculoRepository.findById(id)).thenReturn(Optional.of(veiculo));
+        when(veiculoRepository.buscarPorId(id)).thenReturn(Optional.of(veiculo));
 
         service.excluir(id);
 
-        verify(veiculoRepository).delete(veiculo);
+        verify(veiculoRepository).deletar(veiculo);
     }
 
     private Cliente criarClienteMock(UUID id) {

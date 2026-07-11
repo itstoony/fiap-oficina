@@ -1,10 +1,11 @@
 package br.com.fiap.oficina.estoque.controller;
 
+import br.com.fiap.oficina.estoque.adapter.in.web.PecaController;
+import br.com.fiap.oficina.estoque.application.port.in.PecaDTO;
+import br.com.fiap.oficina.estoque.application.port.in.PecaUseCase;
 import br.com.fiap.oficina.estoque.domain.valueobject.TipoMovimentacao;
-import br.com.fiap.oficina.estoque.service.PecaService;
-import br.com.fiap.oficina.estoque.service.dto.PecaDTO;
 import br.com.fiap.oficina.seguranca.config.SecurityConfig;
-import br.com.fiap.oficina.seguranca.service.JwtService;
+import br.com.fiap.oficina.seguranca.application.service.JwtService;
 import br.com.fiap.oficina.shared.exception.RecursoNaoEncontradoException;
 import br.com.fiap.oficina.shared.exception.RegraDeNegocioException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,7 +40,7 @@ class PecaControllerTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
 
-    @MockitoBean private PecaService service;
+    @MockitoBean private PecaUseCase service;
     @MockitoBean private JwtService jwtService;
     @MockitoBean private UserDetailsService userDetailsService;
 

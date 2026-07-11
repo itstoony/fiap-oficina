@@ -1,7 +1,7 @@
 package br.com.fiap.oficina.seguranca.config;
 
 import br.com.fiap.oficina.seguranca.domain.model.Usuario;
-import br.com.fiap.oficina.seguranca.repository.UsuarioRepository;
+import br.com.fiap.oficina.seguranca.adapter.out.persistence.UsuarioJpaRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,7 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @Slf4j
 public class DataInitializer {
 
-    private final UsuarioRepository usuarioRepository;
+    private final UsuarioJpaRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${oficina.admin.login}")

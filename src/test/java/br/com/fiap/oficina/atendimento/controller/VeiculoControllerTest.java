@@ -1,9 +1,10 @@
 package br.com.fiap.oficina.atendimento.controller;
 
-import br.com.fiap.oficina.atendimento.service.VeiculoService;
-import br.com.fiap.oficina.atendimento.service.dto.VeiculoDTO;
+import br.com.fiap.oficina.atendimento.adapter.in.web.VeiculoController;
+import br.com.fiap.oficina.atendimento.application.port.in.VeiculoDTO;
+import br.com.fiap.oficina.atendimento.application.port.in.VeiculoUseCase;
 import br.com.fiap.oficina.seguranca.config.SecurityConfig;
-import br.com.fiap.oficina.seguranca.service.JwtService;
+import br.com.fiap.oficina.seguranca.application.service.JwtService;
 import br.com.fiap.oficina.shared.exception.RecursoNaoEncontradoException;
 import br.com.fiap.oficina.shared.exception.RegraDeNegocioException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,7 +42,7 @@ class VeiculoControllerTest {
     private ObjectMapper objectMapper;
 
     @MockitoBean
-    private VeiculoService service;
+    private VeiculoUseCase service;
 
     @MockitoBean
     private JwtService jwtService;
