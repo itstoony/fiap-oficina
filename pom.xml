@@ -205,11 +205,20 @@
                                 </rule>
                             </rules>
                             <excludes>
-                                <!-- excluir classes que não precisam de cobertura -->
-                                <exclude>br/com/fiap/oficina/OfiicinaApplication.class</exclude>
+                                <!-- classe principal -->
+                                <exclude>br/com/fiap/oficina/OficinaApplication.class</exclude>
+                                <!-- DTOs, configs e exceções sem lógica de negócio -->
                                 <exclude>br/com/fiap/oficina/**/dto/**</exclude>
                                 <exclude>br/com/fiap/oficina/**/config/**</exclude>
                                 <exclude>br/com/fiap/oficina/**/exception/**</exclude>
+                                <!-- interfaces de porta — sem código executável -->
+                                <exclude>br/com/fiap/oficina/**/application/port/**</exclude>
+                                <!-- adapters de persistência — delegação fina para JPA -->
+                                <exclude>br/com/fiap/oficina/**/adapter/out/persistence/**</exclude>
+                                <!-- adapters de email — testados por perfil, não por unidade -->
+                                <exclude>br/com/fiap/oficina/**/adapter/out/email/**</exclude>
+                                <!-- filtro de segurança — coberto por testes de integração -->
+                                <exclude>br/com/fiap/oficina/**/filter/**</exclude>
                             </excludes>
                         </configuration>
                     </execution>
