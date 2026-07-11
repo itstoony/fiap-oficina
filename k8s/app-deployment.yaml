@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oficina-app
+  namespace: oficina
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: oficina-app
+  template:
+    metadata:
+      labels:
+        app: oficina-app
+    spec:
+      containers:
+        - name: oficina
+          image: itstoony/oficina:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: oficina-config
+          env:
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: oficina-secrets
+                  key: db-password
+            - name: OFICINA_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oficina-secrets
+                  key: jwt-secret
+            - name: MAIL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: oficina-secrets
+                  key: mail-username
+            - name: MAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: oficina-secrets
+                  key: mail-password
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oficina-app
+  namespace: oficina
+spec:
+  selector:
+    app: oficina-app
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: LoadBalancer
