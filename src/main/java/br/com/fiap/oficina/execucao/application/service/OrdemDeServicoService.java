@@ -50,7 +50,7 @@ public class OrdemDeServicoService implements OrdemDeServicoAdminUseCase, OrdemD
     @Override
     @Transactional(readOnly = true)
     public List<OrdemDeServicoDTO.Response> listar() {
-        return repositorio.listarTodas().stream()
+        return repositorio.listarAtivasOrdenadas().stream()
                 .map(this::toResponse)
                 .toList();
     }

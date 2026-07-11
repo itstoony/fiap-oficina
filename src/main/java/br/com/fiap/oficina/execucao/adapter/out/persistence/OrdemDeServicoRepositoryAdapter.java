@@ -40,6 +40,11 @@ public class OrdemDeServicoRepositoryAdapter implements OrdemDeServicoRepository
     }
 
     @Override
+    public List<OrdemDeServico> listarAtivasOrdenadas() {
+        return jpaRepository.findAllAtivasOrdenadas();
+    }
+
+    @Override
     public List<OrdemDeServico> listarTodas() {
         return jpaRepository.findAll();
     }
