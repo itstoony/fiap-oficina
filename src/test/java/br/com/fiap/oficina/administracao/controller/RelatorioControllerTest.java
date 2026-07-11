@@ -1,9 +1,10 @@
 package br.com.fiap.oficina.administracao.controller;
 
-import br.com.fiap.oficina.administracao.service.RelatorioService;
-import br.com.fiap.oficina.administracao.service.dto.RelatorioDTO;
+import br.com.fiap.oficina.administracao.adapter.in.web.RelatorioController;
+import br.com.fiap.oficina.administracao.application.port.in.RelatorioDTO;
+import br.com.fiap.oficina.administracao.application.port.in.RelatorioUseCase;
 import br.com.fiap.oficina.seguranca.config.SecurityConfig;
-import br.com.fiap.oficina.seguranca.service.JwtService;
+import br.com.fiap.oficina.seguranca.application.service.JwtService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -24,7 +25,7 @@ class RelatorioControllerTest {
 
     @Autowired private MockMvc mockMvc;
 
-    @MockitoBean private RelatorioService service;
+    @MockitoBean private RelatorioUseCase service;
     @MockitoBean private JwtService jwtService;
     @MockitoBean private UserDetailsService userDetailsService;
 

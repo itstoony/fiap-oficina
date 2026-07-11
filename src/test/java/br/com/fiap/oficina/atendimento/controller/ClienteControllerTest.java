@@ -1,9 +1,10 @@
 package br.com.fiap.oficina.atendimento.controller;
 
-import br.com.fiap.oficina.atendimento.service.ClienteService;
-import br.com.fiap.oficina.atendimento.service.dto.ClienteDTO;
+import br.com.fiap.oficina.atendimento.adapter.in.web.ClienteController;
+import br.com.fiap.oficina.atendimento.application.port.in.ClienteDTO;
+import br.com.fiap.oficina.atendimento.application.port.in.ClienteUseCase;
 import br.com.fiap.oficina.seguranca.config.SecurityConfig;
-import br.com.fiap.oficina.seguranca.service.JwtService;
+import br.com.fiap.oficina.seguranca.application.service.JwtService;
 import br.com.fiap.oficina.shared.exception.RecursoNaoEncontradoException;
 import br.com.fiap.oficina.shared.exception.RegraDeNegocioException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,7 +42,7 @@ class ClienteControllerTest {
     private ObjectMapper objectMapper;
 
     @MockitoBean
-    private ClienteService service;
+    private ClienteUseCase service;
 
     @MockitoBean
     private JwtService jwtService;
