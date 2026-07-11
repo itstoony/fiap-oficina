@@ -1,0 +1,86 @@
+name: CI/CD — Oficina Mecânica
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  DOCKER_IMAGE: itstoony/oficina
+  JAVA_VERSION: '17'
+
+jobs:
+
+  build-and-test:
+    name: Build e Testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+      - name: Build e Testes com cobertura
+        run: ./mvnw clean verify
+      - name: Upload relatório JaCoCo
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jacoco-report
+          path: target/site/jacoco/
+
+  docker:
+    name: Build e Push Docker
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+      - run: ./mvnw clean package -DskipTests
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.DOCKER_IMAGE }}:latest
+            ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
+
+  deploy:
+    name: Deploy Kubernetes
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v3
+      - name: Configurar kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" > ~/.kube/config
+      - name: Atualizar tag da imagem
+        run: |
+          sed -i "s|itstoony/oficina:latest|${{ env.DOCKER_IMAGE }}:${{ github.sha }}|g" k8s/app-deployment.yaml
+      - name: Deploy banco
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/secret.yaml
+          kubectl apply -f k8s/configmap.yaml
+          kubectl apply -f k8s/db-deployment.yaml
+          kubectl rollout status deployment/oficina-db -n oficina --timeout=120s
+      - name: Deploy aplicação
+        run: |
+          kubectl apply -f k8s/app-deployment.yaml
+          kubectl apply -f k8s/hpa.yaml
+          kubectl rollout status deployment/oficina-app -n oficina --timeout=180s
+      - run: kubectl get pods -n oficina
