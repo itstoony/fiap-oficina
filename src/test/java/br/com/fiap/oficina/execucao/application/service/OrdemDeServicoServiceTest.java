@@ -28,6 +28,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -156,7 +157,7 @@ class OrdemDeServicoServiceTest {
     }
 
     @Test
-    void finalizar_statusEmExecucao_deveMudarParaFinalizada() {
+    void finalizar_statusEmExecucao_deveMudarParaFinalizadaEDesativarOs() {
         OrdemDeServico ordemDeServico = criarOS(StatusOS.EM_EXECUCAO);
         when(repositorio.buscarPorId(ordemDeServico.getId())).thenReturn(ordemDeServico);
         when(repositorio.salvar(any())).thenReturn(ordemDeServico);
@@ -165,10 +166,11 @@ class OrdemDeServicoServiceTest {
 
         assertThat(response.status()).isEqualTo("FINALIZADA");
         assertThat(ordemDeServico.getDataFimExecucao()).isNotNull();
+        assertThat(ordemDeServico.isAtivo()).isFalse();
     }
 
     @Test
-    void cancelar_statusRecebida_deveMudarParaCancelada() {
+    void cancelar_statusRecebida_deveMudarParaCanceladaEDesativarOs() {
         OrdemDeServico ordemDeServico = criarOS(StatusOS.RECEBIDA);
         when(repositorio.buscarPorId(ordemDeServico.getId())).thenReturn(ordemDeServico);
         when(repositorio.salvar(any())).thenReturn(ordemDeServico);
@@ -176,6 +178,19 @@ class OrdemDeServicoServiceTest {
         var response = service.cancelar(ordemDeServico.getId());
 
         assertThat(response.status()).isEqualTo("CANCELADA");
+        assertThat(ordemDeServico.isAtivo()).isFalse();
+    }
+
+    @Test
+    void listar_deveUsarQueryApenasComOsAtivas() {
+        OrdemDeServico osAtiva = criarOS(StatusOS.RECEBIDA);
+        when(repositorio.listarAtivasOrdenadas()).thenReturn(List.of(osAtiva));
+
+        var resultado = service.listar();
+
+        assertThat(resultado).hasSize(1);
+        verify(repositorio).listarAtivasOrdenadas();
+        verify(repositorio, never()).listarTodas();
     }
 
     @Test
