@@ -1,6 +1,6 @@
 package br.com.fiap.oficina.seguranca.filter;
 
-import br.com.fiap.oficina.seguranca.service.JwtService;
+import br.com.fiap.oficina.seguranca.application.service.JwtService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

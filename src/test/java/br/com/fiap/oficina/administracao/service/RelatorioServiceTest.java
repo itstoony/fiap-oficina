@@ -1,12 +1,13 @@
 package br.com.fiap.oficina.administracao.service;
 
+import br.com.fiap.oficina.administracao.application.service.RelatorioService;
 import br.com.fiap.oficina.atendimento.domain.model.Cliente;
 import br.com.fiap.oficina.atendimento.domain.model.Veiculo;
 import br.com.fiap.oficina.atendimento.domain.valueobject.Documento;
 import br.com.fiap.oficina.atendimento.domain.valueobject.Placa;
 import br.com.fiap.oficina.execucao.domain.model.OrdemDeServico;
 import br.com.fiap.oficina.execucao.domain.valueobject.StatusOS;
-import br.com.fiap.oficina.execucao.repository.OrdemDeServicoRepository;
+import br.com.fiap.oficina.execucao.application.port.out.OrdemDeServicoRepositoryPort;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -26,14 +27,14 @@ import static org.mockito.Mockito.when;
 class RelatorioServiceTest {
 
     @Mock
-    private OrdemDeServicoRepository ordemDeServicoRepository;
+    private OrdemDeServicoRepositoryPort ordemDeServicoRepository;
 
     @InjectMocks
     private RelatorioService service;
 
     @Test
     void calcularTempoMedioExecucao_semOrdens_deveRetornarZero() {
-        when(ordemDeServicoRepository.findFinalizadasComDatas(anyList())).thenReturn(List.of());
+        when(ordemDeServicoRepository.buscarFinalizadasComDatas(anyList())).thenReturn(List.of());
 
         var result = service.calcularTempoMedioExecucao();
 
@@ -48,7 +49,7 @@ class RelatorioServiceTest {
         LocalDateTime fim = inicio.plusHours(2).plusMinutes(30);
         OrdemDeServico os = criarOsMock(StatusOS.FINALIZADA, inicio, fim);
 
-        when(ordemDeServicoRepository.findFinalizadasComDatas(anyList())).thenReturn(List.of(os));
+        when(ordemDeServicoRepository.buscarFinalizadasComDatas(anyList())).thenReturn(List.of(os));
 
         var result = service.calcularTempoMedioExecucao();
 
@@ -63,7 +64,7 @@ class RelatorioServiceTest {
         OrdemDeServico os1 = criarOsMock(StatusOS.ENTREGUE, base, base.plusHours(1));      // 60 min
         OrdemDeServico os2 = criarOsMock(StatusOS.FINALIZADA, base, base.plusHours(3));    // 180 min
 
-        when(ordemDeServicoRepository.findFinalizadasComDatas(anyList())).thenReturn(List.of(os1, os2));
+        when(ordemDeServicoRepository.buscarFinalizadasComDatas(anyList())).thenReturn(List.of(os1, os2));
 
         var result = service.calcularTempoMedioExecucao();
 
@@ -77,7 +78,7 @@ class RelatorioServiceTest {
         LocalDateTime base = LocalDateTime.now();
         OrdemDeServico os = criarOsMock(StatusOS.FINALIZADA, base, base.plusMinutes(45));
 
-        when(ordemDeServicoRepository.findFinalizadasComDatas(anyList())).thenReturn(List.of(os));
+        when(ordemDeServicoRepository.buscarFinalizadasComDatas(anyList())).thenReturn(List.of(os));
 
         var result = service.calcularTempoMedioExecucao();
 

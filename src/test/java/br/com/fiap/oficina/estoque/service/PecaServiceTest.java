@@ -1,11 +1,12 @@
 package br.com.fiap.oficina.estoque.service;
 
+import br.com.fiap.oficina.estoque.application.port.out.MovimentacaoEstoqueRepositoryPort;
+import br.com.fiap.oficina.estoque.application.port.out.PecaRepositoryPort;
+import br.com.fiap.oficina.estoque.application.service.PecaService;
+import br.com.fiap.oficina.estoque.application.port.in.PecaDTO;
 import br.com.fiap.oficina.estoque.domain.model.MovimentacaoEstoque;
 import br.com.fiap.oficina.estoque.domain.model.Peca;
 import br.com.fiap.oficina.estoque.domain.valueobject.TipoMovimentacao;
-import br.com.fiap.oficina.estoque.repository.MovimentacaoEstoqueRepository;
-import br.com.fiap.oficina.estoque.repository.PecaRepository;
-import br.com.fiap.oficina.estoque.service.dto.PecaDTO;
 import br.com.fiap.oficina.shared.exception.RecursoNaoEncontradoException;
 import br.com.fiap.oficina.shared.exception.RegraDeNegocioException;
 import org.junit.jupiter.api.Test;
@@ -30,25 +31,25 @@ import static org.mockito.Mockito.*;
 class PecaServiceTest {
 
     @Mock
-    private PecaRepository pecaRepository;
+    private PecaRepositoryPort pecaRepository;
 
     @Mock
-    private MovimentacaoEstoqueRepository movimentacaoRepository;
+    private MovimentacaoEstoqueRepositoryPort movimentacaoRepository;
 
     @InjectMocks
     private PecaService service;
 
     @Test
     void cadastrar_comDadosValidos_deveSalvarERetornarResponse() {
-        when(pecaRepository.existsByCodigo("FILTRO-001")).thenReturn(false);
-        when(pecaRepository.save(any(Peca.class))).thenAnswer(inv -> {
+        when(pecaRepository.existePorCodigo("FILTRO-001")).thenReturn(false);
+        when(pecaRepository.salvar(any(Peca.class))).thenAnswer(inv -> {
             Peca p = inv.getArgument(0);
             return Peca.builder().id(UUID.randomUUID()).nome(p.getNome()).codigo(p.getCodigo())
                     .precoUnitario(p.getPrecoUnitario()).qtdEstoque(p.getQtdEstoque())
                     .qtdReservada(0).qtdMinima(p.getQtdMinima())
                     .criadoEm(LocalDateTime.now()).atualizadoEm(LocalDateTime.now()).build();
         });
-        when(movimentacaoRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(movimentacaoRepository.salvar(any())).thenAnswer(inv -> inv.getArgument(0));
 
         var request = new PecaDTO.CadastrarRequest("Filtro de Óleo", "FILTRO-001", new BigDecimal("45.90"), 10, 3);
         var response = service.cadastrar(request);
@@ -59,14 +60,14 @@ class PecaServiceTest {
         assertThat(response.qtdReservada()).isEqualTo(0);
         assertThat(response.qtdDisponivel()).isEqualTo(10);
         assertThat(response.estoqueCritico()).isFalse();
-        verify(pecaRepository).save(any(Peca.class));
-        verify(movimentacaoRepository).save(any(MovimentacaoEstoque.class));
+        verify(pecaRepository).salvar(any(Peca.class));
+        verify(movimentacaoRepository).salvar(any(MovimentacaoEstoque.class));
     }
 
     @Test
     void cadastrar_semEstoqueInicial_naoDeveRegistrarMovimentacao() {
-        when(pecaRepository.existsByCodigo("PECA-002")).thenReturn(false);
-        when(pecaRepository.save(any(Peca.class))).thenAnswer(inv -> {
+        when(pecaRepository.existePorCodigo("PECA-002")).thenReturn(false);
+        when(pecaRepository.salvar(any(Peca.class))).thenAnswer(inv -> {
             Peca p = inv.getArgument(0);
             return Peca.builder().id(UUID.randomUUID()).nome(p.getNome()).codigo(p.getCodigo())
                     .precoUnitario(p.getPrecoUnitario()).qtdEstoque(0).qtdReservada(0).qtdMinima(2)
@@ -76,12 +77,12 @@ class PecaServiceTest {
         var request = new PecaDTO.CadastrarRequest("Peça Nova", "PECA-002", new BigDecimal("10.00"), 0, 2);
         service.cadastrar(request);
 
-        verify(movimentacaoRepository, never()).save(any());
+        verify(movimentacaoRepository, never()).salvar(any());
     }
 
     @Test
     void cadastrar_comCodigoDuplicado_deveLancarRegraDeNegocioException() {
-        when(pecaRepository.existsByCodigo("FILTRO-001")).thenReturn(true);
+        when(pecaRepository.existePorCodigo("FILTRO-001")).thenReturn(true);
 
         var request = new PecaDTO.CadastrarRequest("Filtro", "FILTRO-001", new BigDecimal("45.90"), 10, 3);
 
@@ -93,7 +94,7 @@ class PecaServiceTest {
     @Test
     void buscarPorId_pecaExistente_deveRetornarResponse() {
         UUID id = UUID.randomUUID();
-        when(pecaRepository.findById(id)).thenReturn(Optional.of(criarPecaMock(id, 10, 0, 3)));
+        when(pecaRepository.buscarPorId(id)).thenReturn(Optional.of(criarPecaMock(id, 10, 0, 3)));
 
         var response = service.buscarPorId(id);
 
@@ -104,7 +105,7 @@ class PecaServiceTest {
     @Test
     void buscarPorId_pecaInexistente_deveLancarRecursoNaoEncontradoException() {
         UUID id = UUID.randomUUID();
-        when(pecaRepository.findById(id)).thenReturn(Optional.empty());
+        when(pecaRepository.buscarPorId(id)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.buscarPorId(id))
                 .isInstanceOf(RecursoNaoEncontradoException.class);
@@ -114,8 +115,8 @@ class PecaServiceTest {
     void atualizar_pecaExistente_deveAtualizarDados() {
         UUID id = UUID.randomUUID();
         Peca peca = criarPecaMock(id, 10, 0, 3);
-        when(pecaRepository.findById(id)).thenReturn(Optional.of(peca));
-        when(pecaRepository.save(peca)).thenReturn(peca);
+        when(pecaRepository.buscarPorId(id)).thenReturn(Optional.of(peca));
+        when(pecaRepository.salvar(peca)).thenReturn(peca);
 
         var request = new PecaDTO.AtualizarRequest("Novo Nome", new BigDecimal("55.00"), 5);
         var response = service.atualizar(id, request);
@@ -123,25 +124,25 @@ class PecaServiceTest {
         assertThat(peca.getNome()).isEqualTo("Novo Nome");
         assertThat(peca.getPrecoUnitario()).isEqualByComparingTo("55.00");
         assertThat(peca.getQtdMinima()).isEqualTo(5);
-        verify(pecaRepository).save(peca);
+        verify(pecaRepository).salvar(peca);
     }
 
     @Test
     void excluir_semReservas_deveChamarDelete() {
         UUID id = UUID.randomUUID();
         Peca peca = criarPecaMock(id, 10, 0, 3);
-        when(pecaRepository.findById(id)).thenReturn(Optional.of(peca));
+        when(pecaRepository.buscarPorId(id)).thenReturn(Optional.of(peca));
 
         service.excluir(id);
 
-        verify(pecaRepository).delete(peca);
+        verify(pecaRepository).deletar(peca);
     }
 
     @Test
     void excluir_comReservas_deveLancarRegraDeNegocioException() {
         UUID id = UUID.randomUUID();
         Peca peca = criarPecaMock(id, 10, 2, 3);
-        when(pecaRepository.findById(id)).thenReturn(Optional.of(peca));
+        when(pecaRepository.buscarPorId(id)).thenReturn(Optional.of(peca));
 
         assertThatThrownBy(() -> service.excluir(id))
                 .isInstanceOf(RegraDeNegocioException.class)
@@ -152,9 +153,9 @@ class PecaServiceTest {
     void registrarEntrada_deveAumentarEstoqueECriarMovimentacao() {
         UUID id = UUID.randomUUID();
         Peca peca = criarPecaMock(id, 5, 0, 3);
-        when(pecaRepository.findById(id)).thenReturn(Optional.of(peca));
-        when(pecaRepository.save(peca)).thenReturn(peca);
-        when(movimentacaoRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(pecaRepository.buscarPorId(id)).thenReturn(Optional.of(peca));
+        when(pecaRepository.salvar(peca)).thenReturn(peca);
+        when(movimentacaoRepository.salvar(any())).thenAnswer(inv -> inv.getArgument(0));
 
         var request = new PecaDTO.EntradaRequest(10, "Reposição de estoque");
         var response = service.registrarEntrada(id, request);
@@ -163,7 +164,7 @@ class PecaServiceTest {
         assertThat(response.qtdEstoque()).isEqualTo(15);
 
         ArgumentCaptor<MovimentacaoEstoque> captor = ArgumentCaptor.forClass(MovimentacaoEstoque.class);
-        verify(movimentacaoRepository).save(captor.capture());
+        verify(movimentacaoRepository).salvar(captor.capture());
         assertThat(captor.getValue().getTipo()).isEqualTo(TipoMovimentacao.ENTRADA);
         assertThat(captor.getValue().getQuantidade()).isEqualTo(10);
     }
@@ -171,7 +172,7 @@ class PecaServiceTest {
     @Test
     void buscarCriticas_deveRetornarApenasPecasComEstoqueCritico() {
         UUID id = UUID.randomUUID();
-        when(pecaRepository.findCriticas()).thenReturn(List.of(criarPecaMock(id, 2, 0, 3)));
+        when(pecaRepository.buscarCriticas()).thenReturn(List.of(criarPecaMock(id, 2, 0, 3)));
 
         var result = service.buscarCriticas();
 
@@ -183,8 +184,8 @@ class PecaServiceTest {
     void buscarMovimentacoes_deveRetornarHistorico() {
         UUID id = UUID.randomUUID();
         Peca peca = criarPecaMock(id, 10, 0, 3);
-        when(pecaRepository.findById(id)).thenReturn(Optional.of(peca));
-        when(movimentacaoRepository.findByPecaIdOrderByDataMovimentacaoDesc(id))
+        when(pecaRepository.buscarPorId(id)).thenReturn(Optional.of(peca));
+        when(movimentacaoRepository.buscarPorPecaIdOrdenado(id))
                 .thenReturn(List.of(
                         MovimentacaoEstoque.builder().id(UUID.randomUUID()).peca(peca)
                                 .tipo(TipoMovimentacao.ENTRADA).quantidade(10).dataMovimentacao(LocalDateTime.now()).build()
@@ -199,7 +200,7 @@ class PecaServiceTest {
     @Test
     void buscarMovimentacoes_pecaInexistente_deveLancarRecursoNaoEncontradoException() {
         UUID id = UUID.randomUUID();
-        when(pecaRepository.findById(id)).thenReturn(Optional.empty());
+        when(pecaRepository.buscarPorId(id)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.buscarMovimentacoes(id))
                 .isInstanceOf(RecursoNaoEncontradoException.class);

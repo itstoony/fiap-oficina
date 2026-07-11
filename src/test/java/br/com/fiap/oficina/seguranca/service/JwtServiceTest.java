@@ -1,5 +1,6 @@
 package br.com.fiap.oficina.seguranca.service;
 
+import br.com.fiap.oficina.seguranca.application.service.JwtService;
 import br.com.fiap.oficina.seguranca.domain.model.Usuario;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
