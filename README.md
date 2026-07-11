@@ -1,13 +1,100 @@
 # Oficina Mecânica — API REST
 
-**FIAP Pós-Tech Software Architecture — Tech Challenge Fase 1**
+**FIAP Pós-Tech Software Architecture — Tech Challenge Fase 1 + Fase 2**
 
 Backend MVP de um sistema integrado de atendimento e execução de serviços de uma oficina mecânica de médio porte. Clientes acompanham em tempo real o andamento do serviço e autorizam reparos adicionais via API.
 
 ---
 
+## Fase 2 — Arquitetura Hexagonal, Kubernetes e CI/CD
+
+### Objetivos
+
+- Refatoração para **Arquitetura Hexagonal** (Ports & Adapters) em todos os bounded contexts
+- **Exclusão lógica** de OSs via campo `ativo` com listagem ordenada por prioridade de status
+- **Notificações por e-mail** ao cliente ao enviar orçamento e ao aprovar/recusar
+- **Manifests Kubernetes** completos (namespace, secret, configmap, deployment, HPA)
+- **Scripts Terraform** para provisionamento de cluster Kind local
+- **Pipeline CI/CD** com GitHub Actions (build, test, Docker push, deploy)
+- **Dockerfile multi-stage** com imagens Alpine (JDK build → JRE runtime)
+
+### Arquitetura de Deploy
+
+```
+┌─────────────── GitHub Actions CI/CD ──────────────────┐
+│  Push → Build → Test → Docker Push → kubectl apply    │
+└───────────────────────────────────────────────────┬───┘
+                                                    │
+┌──────────────── Cluster Kubernetes (Kind) ─────────▼──┐
+│                                                        │
+│  ┌─────────────────┐        ┌──────────────────┐      │
+│  │  oficina-app    │◄──────►│  oficina-db      │      │
+│  │  (2-10 pods)    │        │  (PostgreSQL 16) │      │
+│  │  HPA: CPU > 70% │        │                  │      │
+│  └────────┬────────┘        └──────────────────┘      │
+│           │ ConfigMap + Secrets                        │
+│  ┌────────▼────────┐                                   │
+│  │  LoadBalancer   │                                   │
+│  │  :8080          │                                   │
+│  └─────────────────┘                                   │
+└────────────────────────────────────────────────────────┘
+         │
+         ▼
+   Cliente / Swagger / Postman
+```
+
+### Deploy com Kubernetes
+
+**Pré-requisitos:** Docker, Kind, kubectl
+
+```bash
+# Criar cluster
+kind create cluster --name oficina-cluster
+
+# Aplicar todos os manifests
+kubectl apply -f k8s/
+
+# Aguardar pods
+kubectl get pods -n oficina -w
+
+# Verificar serviço
+kubectl get svc -n oficina
+```
+
+### Provisionamento com Terraform
+
+**Pré-requisitos:** Terraform >= 1.5, Kind, Docker
+
+```bash
+cd infra/
+terraform init
+terraform apply
+
+# Configurar kubectl
+terraform output -raw kubeconfig > ~/.kube/config-oficina
+export KUBECONFIG=~/.kube/config-oficina
+
+# Aplicar manifests
+kubectl apply -f ../k8s/
+```
+
+### Secrets necessários no GitHub Actions
+
+| Secret | Descrição |
+|---|---|
+| `DOCKER_USERNAME` | Usuário DockerHub |
+| `DOCKER_PASSWORD` | Token de acesso DockerHub |
+| `KUBECONFIG` | Conteúdo do kubeconfig do cluster |
+
+### Vídeo de demonstração
+
+> Link do vídeo: *(a preencher após gravação)*
+
+---
+
 ## Sumário
 
+- [Fase 2 — Arquitetura Hexagonal, Kubernetes e CI/CD](#fase-2--arquitetura-hexagonal-kubernetes-e-cicd)
 - [Visão Geral](#visão-geral)
 - [Arquitetura](#arquitetura)
 - [Tecnologias](#tecnologias)
@@ -39,7 +126,7 @@ A documentação DDD completa (Event Storming, Linguagem Ubíqua, Aggregates, Bo
 
 ## Arquitetura
 
-Monolito em camadas com organização interna por **Bounded Context** (DDD). Cada contexto é um pacote isolado com suas próprias camadas.
+Monolito organizado por **Arquitetura Hexagonal** (Ports & Adapters) e **Bounded Context** (DDD). Cada contexto é um pacote isolado com camadas de domínio, aplicação e adaptadores.
 
 ```
 br.com.fiap.oficina/
@@ -68,6 +155,10 @@ br.com.fiap.oficina/
 | Lombok | — |
 | JaCoCo | 0.8.12 |
 | Docker / Docker Compose | — |
+| Kubernetes | — |
+| Kind | — |
+| Terraform | >= 1.5 |
+| GitHub Actions | — |
 
 ---
 
