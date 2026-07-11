@@ -12,6 +12,7 @@ import br.com.fiap.oficina.execucao.application.port.in.OrdemDeServicoDTO;
 import br.com.fiap.oficina.execucao.application.port.out.AtendenteLookupPort;
 import br.com.fiap.oficina.execucao.application.port.out.ClienteLookupPort;
 import br.com.fiap.oficina.execucao.application.port.out.EstoquePort;
+import br.com.fiap.oficina.execucao.application.port.out.NotificacaoEmailPort;
 import br.com.fiap.oficina.execucao.application.port.out.OrdemDeServicoRepositoryPort;
 import br.com.fiap.oficina.execucao.application.port.out.PecaLookupPort;
 import br.com.fiap.oficina.execucao.application.port.out.ServicoLookupPort;
@@ -46,6 +47,7 @@ class OrdemDeServicoServiceTest {
     @Mock private ServicoLookupPort servicoLookup;
     @Mock private PecaLookupPort pecaLookup;
     @Mock private EstoquePort estoque;
+    @Mock private NotificacaoEmailPort notificacaoEmail;
 
     @InjectMocks
     private OrdemDeServicoService service;
@@ -119,7 +121,7 @@ class OrdemDeServicoServiceTest {
     }
 
     @Test
-    void enviarOrcamento_statusEmDiagnostico_deveMudarParaAguardandoAprovacao() {
+    void enviarOrcamento_statusEmDiagnostico_deveMudarParaAguardandoAprovacaoEEnviarEmail() {
         OrdemDeServico ordemDeServico = criarOS(StatusOS.EM_DIAGNOSTICO);
         when(repositorio.buscarPorId(ordemDeServico.getId())).thenReturn(ordemDeServico);
         when(repositorio.salvar(any())).thenReturn(ordemDeServico);
@@ -127,6 +129,11 @@ class OrdemDeServicoServiceTest {
         var response = service.enviarOrcamento(ordemDeServico.getId());
 
         assertThat(response.status()).isEqualTo("AGUARDANDO_APROVACAO");
+        verify(notificacaoEmail).enviarOrcamentoParaAprovacao(
+                ordemDeServico.getCliente().getEmail(),
+                ordemDeServico.getNumero(),
+                ordemDeServico.getValorTotal()
+        );
     }
 
     @Test
