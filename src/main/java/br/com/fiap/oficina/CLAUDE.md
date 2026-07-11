@@ -1,5 +1,737 @@
 # CLAUDE.md — Sistema de Gestão de Oficina Mecânica
-## FIAP Pós-Tech Software Architecture — Tech Challenge Fase 1
+## FIAP Pós-Tech Software Architecture — Tech Challenge Fase 1 + Fase 2
+
+---
+
+## ⚠️ FASE 2 — INCREMENTOS (implementar sobre a Fase 1 já concluída)
+
+A Fase 1 está **completamente implementada** com 157 testes. Não refazer o que já existe.
+Os passos abaixo são os únicos incrementos exigidos pela Fase 2.
+Implementar na ordem indicada.
+
+---
+
+### PASSO 1 — Refatorar para Arquitetura Hexagonal
+
+Reorganizar cada bounded context para o padrão Ports & Adapters. Fazer um contexto por vez: `execucao` → `atendimento` → `estoque` → `administracao` → `seguranca`.
+
+**Nova estrutura de cada contexto:**
+```
+{contexto}/
+├── application/
+│   ├── port/
+│   │   ├── in/           ← interfaces dos Use Cases
+│   │   └── out/          ← interfaces de saída (repositórios, email)
+│   └── service/          ← implementação dos Use Cases
+├── domain/
+│   ├── model/            ← zero dependência de Spring/JPA/Lombok
+│   └── valueobject/
+└── adapter/
+    ├── in/
+    │   └── web/          ← Controllers REST
+    └── out/
+        ├── persistence/  ← implementação JPA dos ports de saída
+        └── email/        ← adapter de email (só no contexto execucao)
+```
+
+**Regras obrigatórias:**
+- `domain` — zero imports de Spring, JPA ou qualquer framework. Java puro.
+- `application/service` — depende apenas de `domain` e das interfaces `port/in` e `port/out`. Nunca importa classes de `adapter`.
+- `adapter` — depende de `application` e `domain`. Nunca é importado por `application`.
+- Controllers injetam interfaces `port/in`, nunca Services diretamente.
+- Repositories JPA implementam interfaces `port/out`.
+
+**Exemplo para o contexto `execucao`:**
+```java
+// application/port/in/AbrirOrdemDeServicoUseCase.java
+public interface AbrirOrdemDeServicoUseCase {
+    OrdemDeServicoResponse abrir(AbrirOrdemDeServicoCommand command);
+}
+
+// application/port/out/OrdemDeServicoRepositoryPort.java
+public interface OrdemDeServicoRepositoryPort {
+    OrdemDeServico salvar(OrdemDeServico os);
+    Optional<OrdemDeServico> buscarPorId(UUID id);
+    Optional<OrdemDeServico> buscarPorNumero(String numero);
+    List<OrdemDeServico> listarAtivasOrdenadas();
+}
+
+// application/service/AbrirOrdemDeServicoService.java
+@Service
+@RequiredArgsConstructor
+public class AbrirOrdemDeServicoService implements AbrirOrdemDeServicoUseCase {
+    private final OrdemDeServicoRepositoryPort repositorio;
+    // lógica de negócio aqui
+}
+
+// adapter/in/web/OrdemDeServicoAdminController.java
+@RestController
+@RequiredArgsConstructor
+public class OrdemDeServicoAdminController {
+    private final AbrirOrdemDeServicoUseCase abrirOrdemDeServicoUseCase;
+    // chama o use case, nunca o service diretamente
+}
+
+// adapter/out/persistence/OrdemDeServicoRepositoryAdapter.java
+@Component
+@RequiredArgsConstructor
+public class OrdemDeServicoRepositoryAdapter implements OrdemDeServicoRepositoryPort {
+    private final OrdemDeServicoJpaRepository jpaRepository;
+}
+```
+
+**Clean Code — aplicar durante a refatoração:**
+- Nenhum método com mais de 20 linhas — extrair em métodos privados com nomes descritivos
+- Sem variáveis abreviadas sem contexto (`os` → `ordemDeServico`, `qtd` → `quantidade`)
+- Sem comentários que apenas repetem o código
+- Constantes nomeadas em vez de números mágicos
+- Cada classe com responsabilidade única
+
+---
+
+### PASSO 2 — Alterar listagem de OSs e exclusão lógica
+
+**2.1** Adicionar campo `ativo` na entidade `OrdemDeServico` (domínio):
+```java
+private boolean ativo = true;
+```
+Ao transicionar para `FINALIZADA`, `ENTREGUE` ou `CANCELADA`, setar `ativo = false` automaticamente dentro do método de transição de status da própria entidade.
+
+**2.2** Implementar nova query de listagem no adapter de persistência:
+```java
+// Ordenação obrigatória: EM_EXECUCAO > AGUARDANDO_APROVACAO > APROVADO > EM_DIAGNOSTICO > RECEBIDA
+// Dentro do mesmo status: mais antigas primeiro
+@Query("""
+    SELECT o FROM OrdemDeServico o
+    WHERE o.ativo = true
+    ORDER BY
+      CASE o.status
+        WHEN 'EM_EXECUCAO'           THEN 1
+        WHEN 'AGUARDANDO_APROVACAO'  THEN 2
+        WHEN 'APROVADO'              THEN 3
+        WHEN 'EM_DIAGNOSTICO'        THEN 4
+        WHEN 'RECEBIDA'              THEN 5
+        ELSE 6
+      END ASC,
+      o.dataAbertura ASC
+    """)
+List<OrdemDeServico> findAllAtivasOrdenadas();
+```
+
+**2.3** Comportamento:
+- `GET /api/admin/ordens` — retorna apenas OSs com `ativo = true` na ordem acima
+- `GET /api/admin/ordens/{id}` — continua retornando qualquer OS incluindo finalizadas/entregues
+
+---
+
+### PASSO 3 — Notificação por email ao enviar orçamento
+
+**3.1** Adicionar dependências no pom.xml:
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-mail</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+```
+
+**3.2** Criar port de saída:
+```java
+// execucao/application/port/out/NotificacaoEmailPort.java
+public interface NotificacaoEmailPort {
+    void enviarOrcamentoParaAprovacao(String emailCliente, String numeroOS, BigDecimal valorTotal);
+    void enviarConfirmacaoAprovacao(String emailCliente, String numeroOS);
+    void enviarConfirmacaoRecusa(String emailCliente, String numeroOS);
+}
+```
+
+**3.3** Adapter real (produção — profile `prod`):
+```java
+// execucao/adapter/out/email/EmailNotificacaoAdapter.java
+@Component
+@Profile("prod")
+@RequiredArgsConstructor
+public class EmailNotificacaoAdapter implements NotificacaoEmailPort {
+    private final JavaMailSender mailSender;
+
+    @Value("${oficina.app.url}")
+    private String appUrl;
+
+    @Override
+    public void enviarOrcamentoParaAprovacao(String emailCliente, String numeroOS, BigDecimal valorTotal) {
+        SimpleMailMessage msg = new SimpleMailMessage();
+        msg.setTo(emailCliente);
+        msg.setSubject("Orçamento disponível — OS " + numeroOS);
+        msg.setText("""
+            Olá! Seu orçamento está pronto.
+            OS: %s | Valor: R$ %s
+            Aprovar: %s/api/public/ordens/%s/aprovar
+            Recusar: %s/api/public/ordens/%s/recusar
+            """.formatted(numeroOS, valorTotal, appUrl, numeroOS, appUrl, numeroOS));
+        mailSender.send(msg);
+    }
+}
+```
+
+**3.4** Adapter mock (desenvolvimento — profile `dev`):
+```java
+// execucao/adapter/out/email/MockEmailNotificacaoAdapter.java
+@Component
+@Profile("dev")
+@Slf4j
+public class MockEmailNotificacaoAdapter implements NotificacaoEmailPort {
+    @Value("${oficina.app.url:http://localhost:8080}")
+    private String appUrl;
+
+    @Override
+    public void enviarOrcamentoParaAprovacao(String emailCliente, String numeroOS, BigDecimal valorTotal) {
+        log.info("[EMAIL MOCK] Para: {} | OS: {} | Valor: R$ {} | Aprovar: {}/api/public/ordens/{}/aprovar",
+            emailCliente, numeroOS, valorTotal, appUrl, numeroOS);
+    }
+}
+```
+
+**3.5** Disparar email no service ao mudar status para `AGUARDANDO_APROVACAO`:
+```java
+notificacaoEmailPort.enviarOrcamentoParaAprovacao(
+    ordemDeServico.getCliente().getEmail(),
+    ordemDeServico.getNumero(),
+    ordemDeServico.getValorTotal()
+);
+```
+
+**3.6** Adicionar ao application.properties:
+```properties
+spring.mail.host=${MAIL_HOST:smtp.gmail.com}
+spring.mail.port=${MAIL_PORT:587}
+spring.mail.username=${MAIL_USERNAME:}
+spring.mail.password=${MAIL_PASSWORD:}
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+oficina.app.url=${APP_URL:http://localhost:8080}
+spring.profiles.active=${SPRING_PROFILES_ACTIVE:dev}
+management.endpoints.web.exposure.include=health
+management.endpoint.health.show-details=never
+```
+
+**3.7** Liberar actuator no SecurityConfig:
+```java
+.requestMatchers("/actuator/health").permitAll()
+```
+
+---
+
+### PASSO 4 — Manifestos Kubernetes em /k8s
+
+Criar a pasta `/k8s` na raiz com os arquivos abaixo:
+
+**k8s/namespace.yaml**
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: oficina
+```
+
+**k8s/secret.yaml**
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: oficina-secrets
+  namespace: oficina
+type: Opaque
+stringData:
+  db-password: "oficina"
+  jwt-secret: "chave-secreta-minimo-256-bits-para-o-jwt-do-sistema-oficina"
+  mail-username: ""
+  mail-password: ""
+```
+
+**k8s/configmap.yaml**
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oficina-config
+  namespace: oficina
+data:
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://oficina-db:5432/oficina"
+  SPRING_DATASOURCE_USERNAME: "oficina"
+  SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
+  SPRING_PROFILES_ACTIVE: "prod"
+  MAIL_HOST: "smtp.gmail.com"
+  MAIL_PORT: "587"
+  APP_URL: "http://oficina-app:8080"
+```
+
+**k8s/db-deployment.yaml**
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oficina-db
+  namespace: oficina
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oficina-db
+  template:
+    metadata:
+      labels:
+        app: oficina-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_DB
+              value: oficina
+            - name: POSTGRES_USER
+              value: oficina
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: oficina-secrets
+                  key: db-password
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: db-data
+      volumes:
+        - name: db-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oficina-db
+  namespace: oficina
+spec:
+  selector:
+    app: oficina-db
+  ports:
+    - port: 5432
+      targetPort: 5432
+```
+
+**k8s/app-deployment.yaml**
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oficina-app
+  namespace: oficina
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: oficina-app
+  template:
+    metadata:
+      labels:
+        app: oficina-app
+    spec:
+      containers:
+        - name: oficina
+          image: itstoony/oficina:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: oficina-config
+          env:
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: oficina-secrets
+                  key: db-password
+            - name: OFICINA_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oficina-secrets
+                  key: jwt-secret
+            - name: MAIL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: oficina-secrets
+                  key: mail-username
+            - name: MAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: oficina-secrets
+                  key: mail-password
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oficina-app
+  namespace: oficina
+spec:
+  selector:
+    app: oficina-app
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: LoadBalancer
+```
+
+**k8s/hpa.yaml**
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: oficina-hpa
+  namespace: oficina
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: oficina-app
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+```
+
+---
+
+### PASSO 5 — Scripts Terraform em /infra
+
+Criar a pasta `/infra` na raiz com os arquivos abaixo. Usar **Kind** para cluster local.
+
+**infra/main.tf**
+```hcl
+terraform {
+  required_version = ">= 1.5"
+  required_providers {
+    kind = {
+      source  = "tehcyx/kind"
+      version = "~> 0.2"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.23"
+    }
+  }
+}
+
+provider "kind" {}
+
+resource "kind_cluster" "oficina" {
+  name = var.cluster_name
+  kind_config {
+    kind        = "Cluster"
+    api_version = "kind.x-k8s.io/v1alpha4"
+    node { role = "control-plane" }
+    node { role = "worker" }
+    node { role = "worker" }
+  }
+}
+
+provider "kubernetes" {
+  host                   = kind_cluster.oficina.endpoint
+  client_certificate     = kind_cluster.oficina.client_certificate
+  client_key             = kind_cluster.oficina.client_key
+  cluster_ca_certificate = kind_cluster.oficina.cluster_ca_certificate
+}
+
+resource "kubernetes_namespace" "oficina" {
+  metadata { name = "oficina" }
+  depends_on = [kind_cluster.oficina]
+}
+```
+
+**infra/variables.tf**
+```hcl
+variable "cluster_name" {
+  description = "Nome do cluster Kind"
+  type        = string
+  default     = "oficina-cluster"
+}
+
+variable "db_password" {
+  description = "Senha do PostgreSQL"
+  type        = string
+  sensitive   = true
+  default     = "oficina"
+}
+
+variable "jwt_secret" {
+  description = "Secret do JWT"
+  type        = string
+  sensitive   = true
+  default     = "chave-secreta-minimo-256-bits-para-o-jwt-do-sistema-oficina"
+}
+```
+
+**infra/outputs.tf**
+```hcl
+output "cluster_name" {
+  description = "Nome do cluster criado"
+  value       = kind_cluster.oficina.name
+}
+
+output "cluster_endpoint" {
+  description = "Endpoint do cluster Kubernetes"
+  value       = kind_cluster.oficina.endpoint
+}
+```
+
+**infra/kubernetes.tf**
+```hcl
+resource "kubernetes_secret" "oficina" {
+  metadata {
+    name      = "oficina-secrets"
+    namespace = kubernetes_namespace.oficina.metadata[0].name
+  }
+  data = {
+    "db-password"   = var.db_password
+    "jwt-secret"    = var.jwt_secret
+    "mail-username" = ""
+    "mail-password" = ""
+  }
+  depends_on = [kubernetes_namespace.oficina]
+}
+```
+
+**infra/README.md**
+```markdown
+# Infraestrutura — Oficina Mecânica (Fase 2)
+
+## Recursos criados
+- Cluster Kind com 1 control-plane e 2 workers
+- Namespace `oficina` no Kubernetes
+- Secret com credenciais do banco, JWT e email
+
+## Pré-requisitos
+- Terraform >= 1.5
+- Docker
+- Kind: https://kind.sigs.k8s.io/
+- kubectl
+
+## Como provisionar
+  cd infra
+  terraform init
+  terraform apply
+  kind get kubeconfig --name oficina-cluster > ~/.kube/config
+  kubectl apply -f ../k8s/
+  kubectl get pods -n oficina
+
+## Como destruir
+  terraform destroy
+```
+
+---
+
+### PASSO 6 — Pipeline CI/CD com GitHub Actions
+
+Criar `.github/workflows/ci-cd.yml`:
+
+```yaml
+name: CI/CD — Oficina Mecânica
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  DOCKER_IMAGE: itstoony/oficina
+  JAVA_VERSION: '17'
+
+jobs:
+
+  build-and-test:
+    name: Build e Testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+      - name: Build e Testes com cobertura
+        run: ./mvnw clean verify
+      - name: Upload relatório JaCoCo
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jacoco-report
+          path: target/site/jacoco/
+
+  docker:
+    name: Build e Push Docker
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+      - run: ./mvnw clean package -DskipTests
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.DOCKER_IMAGE }}:latest
+            ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
+
+  deploy:
+    name: Deploy Kubernetes
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v3
+      - name: Configurar kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" > ~/.kube/config
+      - name: Atualizar tag da imagem
+        run: |
+          sed -i "s|itstoony/oficina:latest|${{ env.DOCKER_IMAGE }}:${{ github.sha }}|g" k8s/app-deployment.yaml
+      - name: Deploy banco
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/secret.yaml
+          kubectl apply -f k8s/configmap.yaml
+          kubectl apply -f k8s/db-deployment.yaml
+          kubectl rollout status deployment/oficina-db -n oficina --timeout=120s
+      - name: Deploy aplicação
+        run: |
+          kubectl apply -f k8s/app-deployment.yaml
+          kubectl apply -f k8s/hpa.yaml
+          kubectl rollout status deployment/oficina-app -n oficina --timeout=180s
+      - run: kubectl get pods -n oficina
+```
+
+**Secrets a configurar no GitHub (Settings → Secrets and variables → Actions):**
+- `DOCKER_USERNAME` — usuário DockerHub (itstoony)
+- `DOCKER_PASSWORD` — token de acesso do DockerHub (gerar em hub.docker.com/settings/security)
+- `KUBECONFIG` — conteúdo raw do `~/.kube/config` após provisionar o cluster
+
+---
+
+### PASSO 7 — Atualizar Dockerfile para multi-stage
+
+Substituir o Dockerfile existente:
+
+```dockerfile
+FROM eclipse-temurin:17-jdk-alpine AS build
+WORKDIR /app
+COPY .mvn .mvn
+COPY mvnw pom.xml ./
+RUN ./mvnw dependency:go-offline -q
+COPY src ./src
+RUN ./mvnw clean package -DskipTests -q
+
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /app
+COPY --from=build /app/target/oficina-0.0.1-SNAPSHOT.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", \
+  "-XX:+UseContainerSupport", \
+  "-XX:MaxRAMPercentage=75.0", \
+  "-jar", "app.jar"]
+```
+
+---
+
+### PASSO 8 — Atualizar README.md
+
+Manter todo o conteúdo existente do README da Fase 1 e adicionar seção de Fase 2 no topo com:
+- Descrição dos objetivos da Fase 2
+- Diagrama da arquitetura em ASCII (abaixo)
+- Instruções de deploy em Kubernetes
+- Instruções de provisionamento com Terraform
+- Link para o vídeo (preencher após gravar)
+
+**Diagrama para o README:**
+```
+┌─────────────── GitHub Actions CI/CD ──────────────────┐
+│  Push → Build → Test → Docker Push → kubectl apply    │
+└───────────────────────────────────────────────────┬───┘
+                                                    │
+┌──────────────── Cluster Kubernetes (Kind) ─────────▼──┐
+│                                                        │
+│  ┌─────────────────┐        ┌──────────────────┐      │
+│  │  oficina-app    │◄──────►│  oficina-db      │      │
+│  │  (2-10 pods)    │        │  (PostgreSQL 16) │      │
+│  │  HPA: CPU > 70% │        │                  │      │
+│  └────────┬────────┘        └──────────────────┘      │
+│           │ ConfigMap + Secrets                        │
+│  ┌────────▼────────┐                                   │
+│  │  LoadBalancer   │                                   │
+│  │  :8080          │                                   │
+│  └─────────────────┘                                   │
+└────────────────────────────────────────────────────────┘
+         │
+         ▼
+   Cliente / Swagger / Postman
+```
+
+---
+
+### O QUE VOCÊ FAZ MANUALMENTE (não é para o Claude Code)
+
+- **Gravar o vídeo** (até 15 min) mostrando: deploy, pipeline CI/CD, consumo das APIs e escalabilidade (HPA criando pods com `kubectl get pods -n oficina -w`)
+- **Configurar secrets** no GitHub Actions (DOCKER_USERNAME, DOCKER_PASSWORD, KUBECONFIG)
+- **Instalar Kind e Terraform** localmente: `brew install kind terraform kubectl`
+- **Montar o PDF de entrega** com: link do repositório, desenho da arquitetura e link do vídeo
+- **Dar acesso ao usuário** `soat-architecture` no repositório (diferente da Fase 1 que era `soatarchitecture`)
+
+---
+
+---
+
+## CONTEXTO COMPLETO DA FASE 1 (referência — não reimplementar)
 
 ---
 
@@ -17,13 +749,11 @@ O board contém:
 - Diagrama de Aggregates, Entities e Value Objects
 - Diagrama de Bounded Contexts e relacionamentos
 
-Sempre consultar o Miro antes de implementar qualquer coisa para garantir consistência entre código e documentação.
-
 ---
 
 ## ESTADO ATUAL
 
-Nenhum bounded context foi implementado ainda. O projeto foi criado com Spring Initializr contendo apenas `spring-boot-starter-web` e `spring-boot-starter-test`. O `pom.xml` precisa ser atualizado com todas as dependências listadas abaixo antes de qualquer implementação.
+Fase 1 **completamente implementada** com 157 testes. Pacote base: `br.com.fiap.oficina`.
 
 ---
 
@@ -42,28 +772,8 @@ Nenhum bounded context foi implementado ainda. O projeto foi criado com Spring I
 
 ---
 
-## DEPENDÊNCIAS DO POM.XML
+## ARQUITETURA ATUAL (Fase 1 — será refatorada para Hexagonal no Passo 1)
 
-Adicionar ao pom.xml além do que já existe:
-- `spring-boot-starter-data-jpa`
-- `spring-boot-starter-validation`
-- `spring-boot-starter-security`
-- `postgresql` (scope runtime)
-- `jjwt-api`, `jjwt-impl`, `jjwt-jackson` versão 0.12.6
-- `springdoc-openapi-starter-webmvc-ui` versão 2.8.4
-- `lombok`
-- `h2` (scope test)
-- `spring-security-test` (scope test)
-- Plugin JaCoCo 0.8.12 com mínimo de 80% de cobertura de linhas, excluindo DTOs, configs e exceptions
-
----
-
-## ARQUITETURA
-
-### Tipo
-Monolito em camadas com organização interna por Bounded Context. Cada bounded context é um pacote separado contendo suas próprias camadas (controller, service, repository, domain).
-
-### Estrutura de pacotes
 ```
 br.com.fiap.oficina/
 ├── atendimento/
@@ -111,8 +821,6 @@ br.com.fiap.oficina/
 
 ## LINGUAGEM UBÍQUA
 
-Usar sempre estes termos em português no código (classes, métodos, variáveis, tabelas):
-
 | Termo | Descrição |
 |---|---|
 | `OrdemDeServico` | Aggregate Root principal. Documento central de um atendimento |
@@ -137,14 +845,11 @@ Usar sempre estes termos em português no código (classes, métodos, variáveis
 ### 1. Atendimento ao Cliente
 **Responsabilidade:** Identificação e cadastro de clientes e veículos. Consulta pública de OS.
 
-**Aggregates e Entities:**
-- `Cliente` — Aggregate Root. Pessoa física (CPF) ou jurídica (CNPJ)
-- `Veiculo` — Entity associada ao Cliente
-- `Atendente` — Entity
+**Aggregates e Entities:** `Cliente` (Aggregate Root), `Veiculo`, `Atendente`
 
 **Value Objects:**
-- `Documento` — encapsula CPF ou CNPJ. Factory method `Documento.of(String)`. Valida pelo algoritmo completo dos dígitos verificadores. Aceita com ou sem formatação
-- `Placa` — encapsula placa. Factory method `Placa.of(String)`. Valida formato antigo (ABC1234) e Mercosul (ABC1D23). Normaliza para maiúsculas
+- `Documento` — CPF ou CNPJ com validação pelo algoritmo dos dígitos verificadores. Factory method `Documento.of(String)`
+- `Placa` — formato antigo (ABC1234) e Mercosul (ABC1D23). Factory method `Placa.of(String)`
 - `TipoDocumento` — enum CPF / CNPJ
 
 **Regras de negócio:**
@@ -155,19 +860,11 @@ Usar sempre estes termos em português no código (classes, métodos, variáveis
 
 **Endpoints (todos requerem JWT):**
 ```
-POST   /api/admin/clientes
-GET    /api/admin/clientes
-GET    /api/admin/clientes/{id}
-GET    /api/admin/clientes/documento/{documento}
-PUT    /api/admin/clientes/{id}
-DELETE /api/admin/clientes/{id}
-POST   /api/admin/veiculos
-GET    /api/admin/veiculos
-GET    /api/admin/veiculos/{id}
-GET    /api/admin/veiculos/placa/{placa}
-GET    /api/admin/veiculos/cliente/{clienteId}
-PUT    /api/admin/veiculos/{id}
-DELETE /api/admin/veiculos/{id}
+POST/GET/PUT/DELETE /api/admin/clientes
+GET /api/admin/clientes/documento/{documento}
+POST/GET/PUT/DELETE /api/admin/veiculos
+GET /api/admin/veiculos/placa/{placa}
+GET /api/admin/veiculos/cliente/{clienteId}
 ```
 
 ---
@@ -175,149 +872,95 @@ DELETE /api/admin/veiculos/{id}
 ### 2. Execução de Serviços
 **Responsabilidade:** Ciclo de vida completo da Ordem de Serviço.
 
-**Aggregates e Entities:**
-- `OrdemDeServico` — Aggregate Root
-- `ItemServico` — Entity filha da OS
-- `ItemPeca` — Entity filha da OS
+**Aggregates e Entities:** `OrdemDeServico` (Aggregate Root), `ItemServico`, `ItemPeca`
 
-**Value Objects:**
-- `StatusOS` — enum com validação de transição unidirecional
+**Value Objects:** `StatusOS` — enum com validação de transição unidirecional
 
-**Máquina de estados do StatusOS:**
+**Máquina de estados:**
 ```
-RECEBIDA → EM_DIAGNOSTICO → AGUARDANDO_APROVACAO → EM_EXECUCAO → FINALIZADA → ENTREGUE
-                                                  ↘
-                                                  CANCELADA (permitido antes de EM_EXECUCAO)
+RECEBIDA → EM_DIAGNOSTICO → AGUARDANDO_APROVACAO → APROVADO → EM_EXECUCAO → FINALIZADA → ENTREGUE
+                                                  ↘ CANCELADA (antes de EM_EXECUCAO)
 ```
 
 **Regras de negócio:**
-- Transições de status são unidirecionais — nunca retroceder
-- `valorTotal` = Σ(itemServico.quantidade × precoUnitario) + Σ(itemPeca.quantidade × precoUnitario)
-- Recalcular `valorTotal` automaticamente a cada adição ou remoção de item
-- Ao mudar para `EM_EXECUCAO`: chamar EstoqueService para converter reservas em baixas definitivas
-- Ao `CANCELAR`: chamar EstoqueService para liberar todas as reservas da OS
-- Registrar `dataInicioExecucao` ao entrar em `EM_EXECUCAO`
-- Registrar `dataFimExecucao` ao entrar em `FINALIZADA`
-- Número da OS gerado automaticamente e único (formato: OS-{ano}-{sequencial 5 dígitos})
+- Transições unidirecionais — nunca retroceder
+- `valorTotal` = Σ(serviços) + Σ(peças) — recalculado a cada alteração
+- Ao `EM_EXECUCAO`: baixar peças reservadas do estoque
+- Ao `CANCELAR`: liberar peças reservadas
+- Número da OS: `OS-{ano}-{sequencial 5 dígitos}`
 
-**Endpoints:**
+**Endpoints admin (JWT) e públicos (sem JWT):**
 ```
-# Admin (requerem JWT)
-POST   /api/admin/ordens
-GET    /api/admin/ordens
-GET    /api/admin/ordens/{id}
-POST   /api/admin/ordens/{id}/servicos
-DELETE /api/admin/ordens/{id}/servicos/{itemId}
-POST   /api/admin/ordens/{id}/pecas
-DELETE /api/admin/ordens/{id}/pecas/{itemId}
-POST   /api/admin/ordens/{id}/iniciar-diagnostico
-POST   /api/admin/ordens/{id}/enviar-orcamento
-POST   /api/admin/ordens/{id}/iniciar-execucao
-POST   /api/admin/ordens/{id}/finalizar
-POST   /api/admin/ordens/{id}/entregar
-POST   /api/admin/ordens/{id}/cancelar
-
-# Público (sem JWT)
-GET    /api/public/ordens/{numero}/status
-POST   /api/public/ordens/{numero}/aprovar
-POST   /api/public/ordens/{numero}/recusar
+POST/GET /api/admin/ordens
+GET /api/admin/ordens/{id}
+POST /api/admin/ordens/{id}/servicos
+POST /api/admin/ordens/{id}/pecas
+POST /api/admin/ordens/{id}/iniciar-diagnostico
+POST /api/admin/ordens/{id}/enviar-orcamento
+POST /api/admin/ordens/{id}/iniciar-execucao
+POST /api/admin/ordens/{id}/finalizar
+POST /api/admin/ordens/{id}/entregar
+POST /api/admin/ordens/{id}/cancelar
+GET  /api/public/ordens/{numero}/status
+POST /api/public/ordens/{numero}/aprovar
+POST /api/public/ordens/{numero}/recusar
 ```
 
 ---
 
 ### 3. Estoque e Insumos
-**Responsabilidade:** Gestão de peças, controle de estoque, reservas e baixas.
+**Responsabilidade:** Gestão de peças, reservas e baixas.
 
-**Aggregates e Entities:**
-- `Peca` — Aggregate Root
-- `MovimentacaoEstoque` — Entity de auditoria
+**Aggregates e Entities:** `Peca` (Aggregate Root), `MovimentacaoEstoque`
 
-**Enum:**
-- `TipoMovimentacao` — ENTRADA, RESERVA, BAIXA, LIBERACAO_RESERVA
+**Enum:** `TipoMovimentacao` — ENTRADA, RESERVA, BAIXA, LIBERACAO_RESERVA
 
-**Regras de negócio:**
-- `qtdDisponivel` = `qtdEstoque` - `qtdReservada` (calcular, nunca persistir)
-- Ao reservar: verificar `qtdDisponivel >= qtdSolicitada`. Se não, lançar `RegraDeNegocioException` HTTP 422
-- `qtdEstoque` e `qtdReservada` nunca podem ser negativos
-- Se `qtdEstoque <= qtdMinima` após qualquer operação: flag `estoqueCritico = true` na resposta
-- Toda movimentação gera registro em `MovimentacaoEstoque` com: data, tipo, quantidade, osId (nullable)
-
-**Endpoints (todos requerem JWT):**
-```
-POST   /api/admin/pecas
-GET    /api/admin/pecas
-GET    /api/admin/pecas/{id}
-PUT    /api/admin/pecas/{id}
-DELETE /api/admin/pecas/{id}
-POST   /api/admin/pecas/{id}/entrada
-GET    /api/admin/pecas/criticas
-GET    /api/admin/pecas/{id}/movimentacoes
-```
+**Regras:**
+- `qtdDisponivel` = `qtdEstoque` - `qtdReservada` (calculado, nunca persistido)
+- Reserva verifica disponibilidade — HTTP 422 se insuficiente
+- `estoqueCritico = true` quando `qtdEstoque <= qtdMinima`
+- Toda movimentação gera registro em `MovimentacaoEstoque`
 
 ---
 
 ### 4. Gestão Administrativa
-**Responsabilidade:** CRUD do catálogo de serviços e monitoramento de tempo médio de execução.
+**Responsabilidade:** CRUD do catálogo de serviços e tempo médio de execução.
 
-**Entities:**
-- `Servico` — catálogo de tipos de serviço com nome, descrição e preço base
+**Entities:** `Servico`
 
-**Regras de negócio:**
-- Tempo médio = média de `(dataFimExecucao - dataInicioExecucao)` calculada sobre OSs com status `FINALIZADA` ou `ENTREGUE`
-
-**Endpoints (todos requerem JWT):**
-```
-POST   /api/admin/servicos
-GET    /api/admin/servicos
-GET    /api/admin/servicos/{id}
-PUT    /api/admin/servicos/{id}
-DELETE /api/admin/servicos/{id}
-GET    /api/admin/relatorios/tempo-medio
-```
+**Endpoints:** CRUD em `/api/admin/servicos` + `GET /api/admin/relatorios/tempo-medio`
 
 ---
 
 ### 5. Segurança (JWT)
-**Responsabilidade:** Autenticação e autorização dos endpoints administrativos.
-
-**Regras:**
-- `/api/admin/**` — requer JWT válido no header `Authorization: Bearer <token>`
-- `/api/public/**` — público, sem autenticação
+- `/api/admin/**` — requer JWT
+- `/api/public/**` — público
 - `/api/auth/login` — público
 - `/swagger-ui.html` e `/api-docs/**` — públicos
-- JWT gerado com jjwt 0.12.6
-- Secret e expiração configuráveis via `application.properties` com prefixo `oficina.jwt`
-
-**Endpoint:**
-```
-POST /api/auth/login   — body: { "login": "...", "senha": "..." }
-                       — retorna: { "token": "..." }
-```
+- JWT com jjwt 0.12.6, secret e expiração via application.properties
 
 ---
 
 ## REGRAS DE CÓDIGO
 
-1. **Lombok** em todas as entidades: `@Getter`, `@Setter`, `@NoArgsConstructor`, `@AllArgsConstructor`, `@Builder`. Nunca usar `@Data` em entidades JPA
-2. **UUID** como tipo de ID em todas as entidades com `@GeneratedValue(strategy = GenerationType.UUID)`
-3. **`@Transactional(readOnly = true)`** em todos os métodos de leitura nos Services
-4. **`@Transactional`** em todos os métodos de escrita nos Services
-5. **DTOs como records** dentro de uma classe wrapper (padrão: `XxxDTO.CadastrarRequest`, `XxxDTO.AtualizarRequest`, `XxxDTO.Response`)
-6. **Nunca expor entidades** nos Controllers — sempre mapear para DTO de Response
-7. **Value Objects** são `@Embeddable` com construtor `protected` sem argumentos e factory method estático `of()`
-8. **Validação** com anotações `jakarta.validation` nos DTOs — nunca no Service
-9. **Exceções** em `shared/exception/`: `RecursoNaoEncontradoException` (404) e `RegraDeNegocioException` (422)
-10. **`GlobalExceptionHandler`** com `@RestControllerAdvice` retornando JSON padronizado para todos os erros
-11. **`@PrePersist`** e **`@PreUpdate`** em todas as entidades para `criadoEm` e `atualizadoEm`
-12. **Testes unitários** com JUnit 5 + Mockito para Services, AssertJ para assertions
-13. **Testes de integração** com `@SpringBootTest` + MockMvc para os Controllers
-14. **Swagger** em todos os Controllers com `@Tag`, `@Operation`, e `@SecurityRequirement(name = "bearerAuth")` nos endpoints admin
+1. Lombok em entidades: `@Getter`, `@Setter`, `@NoArgsConstructor`, `@AllArgsConstructor`, `@Builder`. Nunca `@Data` em entidades JPA
+2. UUID como ID com `@GeneratedValue(strategy = GenerationType.UUID)`
+3. `@Transactional(readOnly = true)` em leituras, `@Transactional` em escritas
+4. DTOs como records dentro de classe wrapper (`XxxDTO.CadastrarRequest`, `XxxDTO.Response`)
+5. Nunca expor entidades nos Controllers — sempre mapear para DTO
+6. Value Objects são `@Embeddable` com construtor `protected` e factory method `of()`
+7. Validação com `jakarta.validation` nos DTOs — nunca no Service
+8. Exceções em `shared/exception/`: `RecursoNaoEncontradoException` (404) e `RegraDeNegocioException` (422)
+9. `GlobalExceptionHandler` com `@RestControllerAdvice`
+10. `@PrePersist` e `@PreUpdate` em todas as entidades
+11. Testes: JUnit 5 + Mockito + AssertJ para unitários, MockMvc para integração
+12. Swagger com `@Tag`, `@Operation` e `@SecurityRequirement(name = "bearerAuth")` nos endpoints admin
 
 ---
 
 ## CONFIGURAÇÕES
 
-### src/main/resources/application.properties
+### application.properties
 ```properties
 spring.application.name=oficina
 spring.datasource.url=jdbc:postgresql://localhost:5432/oficina
@@ -331,9 +974,19 @@ oficina.jwt.secret=chave-secreta-minimo-256-bits-para-o-jwt-do-sistema-oficina
 oficina.jwt.expiracao=86400000
 springdoc.swagger-ui.path=/swagger-ui.html
 springdoc.api-docs.path=/api-docs
+spring.mail.host=${MAIL_HOST:smtp.gmail.com}
+spring.mail.port=${MAIL_PORT:587}
+spring.mail.username=${MAIL_USERNAME:}
+spring.mail.password=${MAIL_PASSWORD:}
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+oficina.app.url=${APP_URL:http://localhost:8080}
+spring.profiles.active=${SPRING_PROFILES_ACTIVE:dev}
+management.endpoints.web.exposure.include=health
+management.endpoint.health.show-details=never
 ```
 
-### src/test/resources/application-test.properties
+### application-test.properties
 ```properties
 spring.datasource.url=jdbc:h2:mem:oficina_test;DB_CLOSE_DELAY=-1
 spring.datasource.driver-class-name=org.h2.Driver
@@ -345,16 +998,27 @@ spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect
 
 ## DOCKER
 
-### Dockerfile (na raiz do projeto)
+### Dockerfile (multi-stage — atualizado na Fase 2)
 ```dockerfile
+FROM eclipse-temurin:17-jdk-alpine AS build
+WORKDIR /app
+COPY .mvn .mvn
+COPY mvnw pom.xml ./
+RUN ./mvnw dependency:go-offline -q
+COPY src ./src
+RUN ./mvnw clean package -DskipTests -q
+
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-COPY target/oficina-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=build /app/target/oficina-0.0.1-SNAPSHOT.jar app.jar
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", \
+  "-XX:+UseContainerSupport", \
+  "-XX:MaxRAMPercentage=75.0", \
+  "-jar", "app.jar"]
 ```
 
-### docker-compose.yml (na raiz do projeto)
+### docker-compose.yml (desenvolvimento local)
 ```yaml
 version: '3.8'
 services:
@@ -366,6 +1030,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/oficina
       SPRING_DATASOURCE_USERNAME: oficina
       SPRING_DATASOURCE_PASSWORD: oficina
+      SPRING_PROFILES_ACTIVE: dev
     depends_on:
       db:
         condition: service_healthy
@@ -387,19 +1052,3 @@ services:
 volumes:
   postgres_data:
 ```
-
----
-
-## ORDEM DE IMPLEMENTAÇÃO
-
-1. 🔲 Atualizar `pom.xml` com todas as dependências
-2. 🔲 Criar `application.properties` e `application-test.properties`
-3. 🔲 **Shared** — `RecursoNaoEncontradoException`, `RegraDeNegocioException`, `GlobalExceptionHandler`
-4. 🔲 **Segurança** — JWT filter, SecurityConfig, UserDetails, AuthController (fazer primeiro para proteger os outros endpoints)
-5. 🔲 **Atendimento** — Cliente, Veiculo, Atendente com Value Objects Documento e Placa
-6. 🔲 **Estoque** — Peca, MovimentacaoEstoque (fazer antes de Execução pois OS depende de Peca)
-7. 🔲 **Execução** — OrdemDeServico, ItemServico, ItemPeca, StatusOS
-8. 🔲 **Administração** — Servico, relatório de tempo médio
-9. 🔲 **Testes de integração** com MockMvc
-10. 🔲 **Dockerfile** e **docker-compose.yml**
-11. 🔲 **Análise de vulnerabilidades** com OWASP Dependency-Check ou Trivy
