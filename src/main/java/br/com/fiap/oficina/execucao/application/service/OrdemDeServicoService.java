@@ -13,6 +13,7 @@ import br.com.fiap.oficina.execucao.application.port.in.OrdemDeServicoPublicUseC
 import br.com.fiap.oficina.execucao.application.port.out.AtendenteLookupPort;
 import br.com.fiap.oficina.execucao.application.port.out.ClienteLookupPort;
 import br.com.fiap.oficina.execucao.application.port.out.EstoquePort;
+import br.com.fiap.oficina.execucao.application.port.out.NotificacaoEmailPort;
 import br.com.fiap.oficina.execucao.application.port.out.OrdemDeServicoRepositoryPort;
 import br.com.fiap.oficina.execucao.application.port.out.PecaLookupPort;
 import br.com.fiap.oficina.execucao.application.port.out.ServicoLookupPort;
@@ -42,6 +43,7 @@ public class OrdemDeServicoService implements OrdemDeServicoAdminUseCase, OrdemD
     private final ServicoLookupPort servicoLookup;
     private final PecaLookupPort pecaLookup;
     private final EstoquePort estoque;
+    private final NotificacaoEmailPort notificacaoEmail;
 
     // -------------------------------------------------------------------------
     // CONSULTAS
@@ -195,7 +197,13 @@ public class OrdemDeServicoService implements OrdemDeServicoAdminUseCase, OrdemD
     public OrdemDeServicoDTO.Response enviarOrcamento(UUID id) {
         OrdemDeServico ordemDeServico = repositorio.buscarPorId(id);
         ordemDeServico.transicionarPara(StatusOS.AGUARDANDO_APROVACAO);
-        return toResponse(repositorio.salvar(ordemDeServico));
+        OrdemDeServico salva = repositorio.salvar(ordemDeServico);
+        notificacaoEmail.enviarOrcamentoParaAprovacao(
+                ordemDeServico.getCliente().getEmail(),
+                ordemDeServico.getNumero(),
+                ordemDeServico.getValorTotal()
+        );
+        return toResponse(salva);
     }
 
     @Override
