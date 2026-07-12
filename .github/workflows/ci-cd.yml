@@ -57,30 +57,21 @@ jobs:
             ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
 
   deploy:
-    name: Deploy Kubernetes
+    name: Validar Manifests Kubernetes
     runs-on: ubuntu-latest
     needs: docker
     if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
       - uses: azure/setup-kubectl@v3
-      - name: Configurar kubeconfig
-        run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG }}" > ~/.kube/config
       - name: Atualizar tag da imagem
         run: |
           sed -i "s|itstoony/oficina:latest|${{ env.DOCKER_IMAGE }}:${{ github.sha }}|g" k8s/app-deployment.yaml
-      - name: Deploy banco
+      - name: Validar manifests (dry-run)
         run: |
-          kubectl apply -f k8s/namespace.yaml
-          kubectl apply -f k8s/secret.yaml
-          kubectl apply -f k8s/configmap.yaml
-          kubectl apply -f k8s/db-deployment.yaml
-          kubectl rollout status deployment/oficina-db -n oficina --timeout=120s
-      - name: Deploy aplicação
-        run: |
-          kubectl apply -f k8s/app-deployment.yaml
-          kubectl apply -f k8s/hpa.yaml
-          kubectl rollout status deployment/oficina-app -n oficina --timeout=180s
-      - run: kubectl get pods -n oficina
+          kubectl apply --dry-run=client -f k8s/namespace.yaml
+          kubectl apply --dry-run=client -f k8s/secret.yaml
+          kubectl apply --dry-run=client -f k8s/configmap.yaml
+          kubectl apply --dry-run=client -f k8s/db-deployment.yaml
+          kubectl apply --dry-run=client -f k8s/app-deployment.yaml
+          kubectl apply --dry-run=client -f k8s/hpa.yaml
