@@ -1,8 +1,8 @@
 {
   "info": {
-    "_postman_id": "oficina-fluxo-completo-v1",
-    "name": "Oficina Mecânica — Fluxo Completo",
-    "description": "Cobertura completa dos 3 fluxos do Miro (Criação da OS, Acompanhamento da OS, Gestão de Peças) e Event Storming.\n\n▶️ COMO USAR:\n1. Execute '0.1 Login' — o token JWT é salvo automaticamente\n2. Execute o Setup completo (pastas 1 e 2)\n3. Siga os fluxos na ordem das pastas\n\nVariáveis capturadas automaticamente via test scripts: token, servicoId, servico2Id, pecaId, peca2Id, atendenteId, clienteId, veiculoId, osId, osNumero, itemServicoId, itemPecaId",
+    "_postman_id": "oficina-completo-v2",
+    "name": "Oficina Mecânica — Fluxo Completo (Fase 1 + Fase 2)",
+    "description": "Cobertura completa de todos os fluxos da aplicação.\n\n▶️ COMO USAR:\n1. Execute \"0.1 Login\" — o token JWT é salvo automaticamente\n2. Execute o Setup completo (pastas 1 e 2)\n3. Siga os fluxos na ordem das pastas\n4. Para a demonstração da Fase 2, use a pasta ⭐ Fase 2\n\nVariáveis capturadas automaticamente: token, servicoId, servico2Id, pecaId, peca2Id, atendenteId, clienteId, veiculoId, osId, osNumero, os2Id, os2Numero, itemServicoId, itemPecaId",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -40,7 +40,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"login\": \"meuadmin\",\n  \"senha\": \"senha_forte\"\n}"
+              "raw": "{\n  \"login\": \"admin\",\n  \"senha\": \"admin123\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/auth/login",
@@ -1905,6 +1905,544 @@
       ],
       "id": "db1d47df-2f98-44f1-9a3d-f20c7041c7f0",
       "description": "Requests que testam os erros esperados (HTTP 422, 400, 401, 404)."
+    },
+    {
+      "name": "⭐ Fase 2 — Demonstração Completa",
+      "description": "Fluxo focado nos incrementos da Fase 2: listagem ordenada de OSs ativas, notificações por email e exclusão lógica.",
+      "item": [
+        {
+          "name": "3. Fase 2 — Fluxo Completo da OS (Happy Path)",
+          "item": [
+            {
+              "name": "3.1 Abrir OS",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200 || pm.response.code === 201) {",
+                      "    const json = pm.response.json();",
+                      "    pm.collectionVariables.set('osId', json.id);",
+                      "    pm.collectionVariables.set('osNumero', json.numero);",
+                      "    console.log('osId salvo:', json.id);",
+                      "    console.log('osNumero salvo:', json.numero);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clienteId\": \"{{clienteId}}\",\n  \"veiculoId\": \"{{veiculoId}}\",\n  \"observacoes\": \"Veículo com barulho no motor e troca de óleo necessária\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/ordens",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "ordens"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "3.2 Adicionar Serviço à OS",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200 || pm.response.code === 201) {",
+                      "    const json = pm.response.json();",
+                      "    pm.collectionVariables.set('itemServicoId', json.id);",
+                      "    console.log('itemServicoId salvo:', json.id);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"servicoId\": \"{{servicoId}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/ordens/{{osId}}/servicos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "ordens",
+                    "{{osId}}",
+                    "servicos"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "3.3 Adicionar Peça — Filtro (2 un)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200 || pm.response.code === 201) {",
+                      "    const json = pm.response.json();",
+                      "    pm.collectionVariables.set('itemPecaId', json.id);",
+                      "    console.log('itemPecaId salvo:', json.id);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pecaId\": \"{{pecaId}}\",\n  \"quantidade\": 2\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/ordens/{{osId}}/pecas",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "ordens",
+                    "{{osId}}",
+                    "pecas"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "3.4 Adicionar Peça — Óleo 5W30 (4 un)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pecaId\": \"{{peca2Id}}\",\n  \"quantidade\": 4\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/ordens/{{osId}}/pecas",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "ordens",
+                    "{{osId}}",
+                    "pecas"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "3.5 Ver OS com Orçamento",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/ordens/{{osId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "ordens",
+                    "{{osId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "3.6 Iniciar Diagnóstico (RECEBIDA → EM_DIAGNOSTICO)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/ordens/{{osId}}/iniciar-diagnostico",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "ordens",
+                    "{{osId}}",
+                    "iniciar-diagnostico"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "3.7 Enviar Orçamento (EM_DIAGNOSTICO → AGUARDANDO_APROVACAO)",
+              "description": "FASE 2: Email de orçamento é enviado automaticamente para o cliente neste momento",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/ordens/{{osId}}/enviar-orcamento",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "ordens",
+                    "{{osId}}",
+                    "enviar-orcamento"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "3.8 [PÚBLICO] Consultar Status pelo Número",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/public/ordens/{{osNumero}}/status",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "public",
+                    "ordens",
+                    "{{osNumero}}",
+                    "status"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "3.9 [PÚBLICO] Cliente Aprova o Orçamento (→ APROVADO)",
+              "description": "FASE 2: Email de confirmação de aprovação é enviado ao cliente",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/public/ordens/{{osNumero}}/aprovar",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "public",
+                    "ordens",
+                    "{{osNumero}}",
+                    "aprovar"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "3.10 [NOVA LISTAGEM FASE 2] Listar OSs Ativas Ordenadas",
+              "description": "FASE 2: Retorna apenas OSs ativas (ativo=true), ordenadas por prioridade de status: EM_EXECUCAO > AGUARDANDO_APROVACAO > APROVADO > EM_DIAGNOSTICO > RECEBIDA",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/ordens",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "ordens"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "3.11 Iniciar Execução (APROVADO → EM_EXECUCAO)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"atendenteId\": \"{{atendenteId}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/ordens/{{osId}}/iniciar-execucao",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "ordens",
+                    "{{osId}}",
+                    "iniciar-execucao"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "3.12 Ver Movimentações do Filtro (reserva → baixa)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/pecas/{{pecaId}}/movimentacoes",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "pecas",
+                    "{{pecaId}}",
+                    "movimentacoes"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "3.13 Finalizar OS (EM_EXECUCAO → FINALIZADA)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/ordens/{{osId}}/finalizar",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "ordens",
+                    "{{osId}}",
+                    "finalizar"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "3.14 Entregar Veículo (FINALIZADA → ENTREGUE)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/ordens/{{osId}}/entregar",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "ordens",
+                    "{{osId}}",
+                    "entregar"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "3.15 [NOVA LISTAGEM FASE 2] OSs Ativas após Entrega",
+              "description": "FASE 2: OS entregue NÃO aparece mais na listagem (ativo=false). Demonstra a exclusão lógica.",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/ordens",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "ordens"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. Fase 2 — Fluxo de Recusa",
+          "item": [
+            {
+              "name": "4.1 Abrir Nova OS (para recusa)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200 || pm.response.code === 201) {",
+                      "    const json = pm.response.json();",
+                      "    pm.collectionVariables.set('os2Id', json.id);",
+                      "    pm.collectionVariables.set('os2Numero', json.numero);",
+                      "    console.log('os2Id salvo:', json.id);",
+                      "    console.log('os2Numero salvo:', json.numero);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clienteId\": \"{{clienteId}}\",\n  \"veiculoId\": \"{{veiculoId}}\",\n  \"observacoes\": \"Segunda OS — cliente vai recusar o orçamento\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/ordens",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "ordens"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "4.2 Iniciar Diagnóstico",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/ordens/{{os2Id}}/iniciar-diagnostico",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "ordens",
+                    "{{os2Id}}",
+                    "iniciar-diagnostico"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "4.3 Enviar Orçamento",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/ordens/{{os2Id}}/enviar-orcamento",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "ordens",
+                    "{{os2Id}}",
+                    "enviar-orcamento"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "4.4 [PÚBLICO] Cliente Recusa (→ CANCELADA)",
+              "description": "FASE 2: Email de confirmação de recusa é enviado ao cliente",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/public/ordens/{{os2Numero}}/recusar",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "public",
+                    "ordens",
+                    "{{os2Numero}}",
+                    "recusar"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "4.5 [NOVA LISTAGEM] Confirmar que OS Cancelada não aparece",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/ordens",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "ordens"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "id": "fase2-demo-folder"
     }
   ],
   "auth": {
@@ -1993,6 +2531,16 @@
     {
       "id": "efde5f73-0205-4937-a65d-56571bf9b6b1",
       "key": "itemPecaId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "os2Id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "os2Numero",
       "value": "",
       "type": "string"
     }
