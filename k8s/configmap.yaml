@@ -11,3 +11,4 @@ data:
   MAIL_HOST: "smtp.gmail.com"
   MAIL_PORT: "587"
   APP_URL: "http://oficina-app:8080"
+  MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
