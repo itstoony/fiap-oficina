@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: oficina
       POSTGRES_USER: oficina
-      POSTGRES_PASSWORD: oficina
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-oficina}
     ports:
       - "5432:5432"
     volumes:
@@ -28,13 +28,21 @@ services:
     ports:
       - "8080:8080"
     environment:
+      SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/oficina
       SPRING_DATASOURCE_USERNAME: oficina
-      SPRING_DATASOURCE_PASSWORD: oficina
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      OFICINA_ADMIN_LOGIN: meuadmin
-      OFICINA_ADMIN_SENHA: senha_forte
-      OFICINA_BCRYPT_STRENGTH: 12
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-oficina}
+      OFICINA_JWT_SECRET: ${JWT_SECRET:-chave-secreta-minimo-256-bits-para-o-jwt-do-sistema-oficina}
+      OFICINA_JWT_EXPIRACAO: ${JWT_EXPIRACAO:-3600000}
+      OFICINA_ADMIN_LOGIN: ${ADMIN_LOGIN:-admin}
+      OFICINA_ADMIN_SENHA: ${ADMIN_SENHA:-admin123}
+      OFICINA_BCRYPT_STRENGTH: ${BCRYPT_STRENGTH:-10}
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
     depends_on:
       db:
         condition: service_healthy
