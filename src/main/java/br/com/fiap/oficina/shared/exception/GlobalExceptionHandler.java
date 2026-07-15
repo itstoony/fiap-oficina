@@ -1,7 +1,9 @@
 package br.com.fiap.oficina.shared.exception;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.MailException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -12,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -42,6 +45,20 @@ public class GlobalExceptionHandler {
         Map<String, Object> body = buildError(HttpStatus.BAD_REQUEST, "Erro de validação");
         body.put("campos", campos);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(MailException.class)
+    public ResponseEntity<Map<String, Object>> handleMailException(MailException ex) {
+        log.warn("Falha ao enviar email: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(buildError(HttpStatus.SERVICE_UNAVAILABLE, "Operação realizada, mas falha ao enviar email: " + ex.getMessage()));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex) {
+        log.error("Erro interno não tratado: {}", ex.getMessage(), ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno do servidor"));
     }
 
     private Map<String, Object> buildError(HttpStatus status, String mensagem) {

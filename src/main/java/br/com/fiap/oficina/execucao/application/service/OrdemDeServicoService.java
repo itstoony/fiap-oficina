@@ -24,6 +24,7 @@ import br.com.fiap.oficina.execucao.domain.model.OrdemDeServico;
 import br.com.fiap.oficina.execucao.domain.valueobject.StatusOS;
 import br.com.fiap.oficina.shared.exception.RecursoNaoEncontradoException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +33,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrdemDeServicoService implements OrdemDeServicoAdminUseCase, OrdemDeServicoPublicUseCase {
@@ -138,7 +140,7 @@ public class OrdemDeServicoService implements OrdemDeServicoAdminUseCase, OrdemD
     }
 
     // -------------------------------------------------------------------------
-    // ITENS DE PEÇA
+    // ITENS DE PEÇAS
     // -------------------------------------------------------------------------
 
     @Override
@@ -198,11 +200,15 @@ public class OrdemDeServicoService implements OrdemDeServicoAdminUseCase, OrdemD
         OrdemDeServico ordemDeServico = repositorio.buscarPorId(id);
         ordemDeServico.transicionarPara(StatusOS.AGUARDANDO_APROVACAO);
         OrdemDeServico salva = repositorio.salvar(ordemDeServico);
-        notificacaoEmail.enviarOrcamentoParaAprovacao(
-                ordemDeServico.getCliente().getEmail(),
-                ordemDeServico.getNumero(),
-                ordemDeServico.getValorTotal()
-        );
+        try {
+            notificacaoEmail.enviarOrcamentoParaAprovacao(
+                    ordemDeServico.getCliente().getEmail(),
+                    ordemDeServico.getNumero(),
+                    ordemDeServico.getValorTotal()
+            );
+        } catch (Exception e) {
+            log.warn("Falha ao enviar email de orçamento para OS {}: {}", ordemDeServico.getNumero(), e.getMessage());
+        }
         return toResponse(salva);
     }
 
