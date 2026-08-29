@@ -34,6 +34,10 @@ spring:
           starttls:
             enable: true
 
+logging:
+  pattern:
+    console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%-5level","service":"oficina-app","traceId":"%X{dd.trace_id}","spanId":"%X{dd.span_id}","message":"%msg"}%n'
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

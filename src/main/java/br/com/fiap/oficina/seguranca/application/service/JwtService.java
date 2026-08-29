@@ -44,6 +44,14 @@ public class JwtService {
         }
     }
 
+    public boolean validarToken(String token) {
+        try {
+            return !isTokenExpirado(token);
+        } catch (JwtException e) {
+            return false;
+        }
+    }
+
     private boolean isTokenExpirado(String token) {
         return extrairClaim(token, Claims::getExpiration).before(new Date());
     }
