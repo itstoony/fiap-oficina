@@ -1,90 +1,61 @@
 # Oficina Mecânica — API REST
 
-**FIAP Pós-Tech Software Architecture — Tech Challenge Fase 1 + Fase 2**
+**FIAP Pós-Tech Software Architecture — Tech Challenge Fase 3**
 
-Backend MVP de um sistema integrado de atendimento e execução de serviços de uma oficina mecânica de médio porte. Clientes acompanham em tempo real o andamento do serviço e autorizam reparos adicionais via API.
+Backend de um sistema integrado de atendimento e execução de serviços de uma oficina mecânica. Clientes acompanham em tempo real o andamento do serviço e autorizam reparos adicionais via API.
 
 ---
 
-## Fase 2 — Arquitetura Hexagonal, Kubernetes e CI/CD
+## Fase 3 — Serverless, AWS EKS e RDS
 
 ### Objetivos
 
-- Refatoração para **Arquitetura Hexagonal** (Ports & Adapters) em todos os bounded contexts
-- **Exclusão lógica** de OSs via campo `ativo` com listagem ordenada por prioridade de status
-- **Notificações por e-mail** ao cliente ao enviar orçamento e ao aprovar/recusar
-- **Manifests Kubernetes** completos (namespace, secret, configmap, deployment, HPA)
-- **Scripts Terraform** para provisionamento de cluster Kind local
-- **Pipeline CI/CD** com GitHub Actions (build, test, Docker push, deploy)
-- **Dockerfile multi-stage** com imagens Alpine (JDK build → JRE runtime)
+- **Autenticação de clientes via Lambda** — função serverless em Python que valida CPF e retorna JWT (repositório `oficina-lambda`)
+- **Deploy em AWS EKS** — cluster Kubernetes gerenciado na AWS (repositório `oficina-infra-k8s`)
+- **Banco de dados RDS PostgreSQL** — instância gerenciada na AWS (repositório `oficina-infra-db`)
+- **Pipeline CI/CD** com GitHub Actions: build → testes → push para ECR → `kubectl set image` no EKS
+- **Autenticação admin** via `/api/auth/admin` (login/senha) para operações administrativas
 
 ### Arquitetura de Deploy
 
 ```
-┌─────────────── GitHub Actions CI/CD ──────────────────┐
-│  Push → Build → Test → Docker Push → kubectl apply    │
-└───────────────────────────────────────────────────┬───┘
-                                                    │
-┌──────────────── Cluster Kubernetes (Kind) ─────────▼──┐
-│                                                        │
-│  ┌─────────────────┐        ┌──────────────────┐      │
-│  │  oficina-app    │◄──────►│  oficina-db      │      │
-│  │  (2-10 pods)    │        │  (PostgreSQL 16) │      │
-│  │  HPA: CPU > 70% │        │                  │      │
-│  └────────┬────────┘        └──────────────────┘      │
-│           │ ConfigMap + Secrets                        │
-│  ┌────────▼────────┐                                   │
-│  │  LoadBalancer   │                                   │
-│  │  :8080          │                                   │
-│  └─────────────────┘                                   │
-└────────────────────────────────────────────────────────┘
+┌────────────────── GitHub Actions CI/CD ───────────────────────┐
+│  Push main → Build → Test → Push ECR → kubectl set image EKS  │
+└──────────────────────────────────────────────────────────┬────┘
+                                                           │
+┌──── AWS EKS (oficina-cluster, t3.micro) ─────────────────▼───┐
+│                                                               │
+│  ┌─────────────────┐        ┌──────────────────────────────┐ │
+│  │  oficina-app    │◄──────►│  RDS PostgreSQL 16.9         │ │
+│  │  (1 pod)        │        │  oficina-db (db.t3.micro)    │ │
+│  │  HPA: CPU > 70% │        └──────────────────────────────┘ │
+│  └────────┬────────┘                                          │
+│  ┌────────▼────────┐                                          │
+│  │  LoadBalancer   │                                          │
+│  │  porta 80       │                                          │
+│  └─────────────────┘                                          │
+└───────────────────────────────────────────────────────────────┘
          │
          ▼
-   Cliente / Swagger / Postman
+┌──── AWS Lambda (oficina-lambda) ──────────────┐
+│  POST /auth/login → valida CPF → retorna JWT  │
+│  API Gateway: fpwmtfk2k4.execute-api...       │
+└───────────────────────────────────────────────┘
 ```
 
-### Deploy com Kubernetes
+### Fluxo de autenticação
 
-**Pré-requisitos:** Docker, Kind, kubectl
-
-```bash
-# Criar cluster
-kind create cluster --name oficina-cluster
-
-# Aplicar todos os manifests
-kubectl apply -f k8s/
-
-# Aguardar pods
-kubectl get pods -n oficina -w
-
-# Verificar serviço
-kubectl get svc -n oficina
-```
-
-### Provisionamento com Terraform
-
-**Pré-requisitos:** Terraform >= 1.5, Kind, Docker
-
-```bash
-cd infra/
-terraform init
-terraform apply
-
-# Configurar kubectl
-terraform output -raw kubeconfig > ~/.kube/config-oficina
-export KUBECONFIG=~/.kube/config-oficina
-
-# Aplicar manifests
-kubectl apply -f ../k8s/
-```
+| Quem | Endpoint | Como |
+|---|---|---|
+| **Administrador** | `POST /api/auth/admin` | login + senha → JWT |
+| **Cliente** | `POST <lambda>/auth/login` | CPF → JWT (via Lambda) |
 
 ### Secrets necessários no GitHub Actions
 
 | Secret | Descrição |
 |---|---|
-| `DOCKER_USERNAME` | Usuário DockerHub |
-| `DOCKER_PASSWORD` | Token de acesso DockerHub |
-| `KUBECONFIG` | Conteúdo do kubeconfig do cluster |
+| `AWS_ACCESS_KEY_ID` | Credencial AWS |
+| `AWS_SECRET_ACCESS_KEY` | Credencial AWS |
 
 ### Vídeo de demonstração
 
@@ -170,7 +141,7 @@ Autenticação stateless com JWT. Todos os endpoints `/api/admin/**` exigem toke
 
 | Método | Endpoint | Descrição |
 |---|---|---|
-| `POST` | `/api/auth/login` | Autenticar e obter token JWT |
+| `POST` | `/api/auth/admin` | Autenticar administrador com login e senha |
 
 **Configuração via variáveis de ambiente:**
 
@@ -444,7 +415,7 @@ GRANT ALL PRIVILEGES ON DATABASE oficina TO oficina;
 Todos os endpoints `/api/admin/**` exigem autenticação. Obtenha o token via login:
 
 ```bash
-curl -X POST http://localhost:8080/api/auth/login \
+curl -X POST http://localhost:8080/api/auth/admin \
   -H "Content-Type: application/json" \
   -d '{"login": "admin", "senha": "admin123"}'
 ```
@@ -469,7 +440,7 @@ curl http://localhost:8080/api/admin/clientes \
 ### Autenticação
 
 ```bash
-curl -X POST http://localhost:8080/api/auth/login \
+curl -X POST http://localhost:8080/api/auth/admin \
   -H "Content-Type: application/json" \
   -d '{"login": "admin", "senha": "admin123"}'
 ```
