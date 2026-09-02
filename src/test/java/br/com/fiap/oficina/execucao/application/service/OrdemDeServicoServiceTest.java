@@ -12,6 +12,7 @@ import br.com.fiap.oficina.execucao.application.port.in.OrdemDeServicoDTO;
 import br.com.fiap.oficina.execucao.application.port.out.AtendenteLookupPort;
 import br.com.fiap.oficina.execucao.application.port.out.ClienteLookupPort;
 import br.com.fiap.oficina.execucao.application.port.out.EstoquePort;
+import br.com.fiap.oficina.execucao.application.port.out.MetricasPort;
 import br.com.fiap.oficina.execucao.application.port.out.NotificacaoEmailPort;
 import br.com.fiap.oficina.execucao.application.port.out.OrdemDeServicoRepositoryPort;
 import br.com.fiap.oficina.execucao.application.port.out.PecaLookupPort;
@@ -48,6 +49,7 @@ class OrdemDeServicoServiceTest {
     @Mock private PecaLookupPort pecaLookup;
     @Mock private EstoquePort estoque;
     @Mock private NotificacaoEmailPort notificacaoEmail;
+    @Mock private MetricasPort metricas;
 
     @InjectMocks
     private OrdemDeServicoService service;
