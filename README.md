@@ -57,16 +57,30 @@ Backend de um sistema integrado de atendimento e execução de serviços de uma 
 | `AWS_ACCESS_KEY_ID` | Credencial AWS |
 | `AWS_SECRET_ACCESS_KEY` | Credencial AWS |
 
-### Deploy ativo
+### Deploy e demonstração
+
+> **Nota sobre custos:** A infraestrutura (EKS + RDS) não é mantida permanentemente no ar devido aos custos da AWS (cluster EKS ~$0.10/h, sem free tier). O ambiente é provisionado sob demanda via `terraform apply` no repositório `oficina-infra-k8s` e destruído após uso. Todo o funcionamento do sistema está demonstrado no vídeo abaixo.
 
 | Recurso | URL |
 |---|---|
-| **API (EKS)** | `http://ab4aa81c4ec494862b0a482b63074250-171925194.sa-east-1.elb.amazonaws.com` |
-| **Swagger UI** | `http://ab4aa81c4ec494862b0a482b63074250-171925194.sa-east-1.elb.amazonaws.com/swagger-ui.html` |
+| **Vídeo de demonstração** | *(a preencher após gravação)* |
 | **Lambda (CPF auth)** | `https://fpwmtfk2k4.execute-api.sa-east-1.amazonaws.com/Prod/auth/login` |
 | **Documentação arquitetural** | [docs/ARQUITETURA.md](docs/ARQUITETURA.md) |
 | **Postman Collection** | [postman/collections/oficina-fluxo-completo.postman_collection.json](postman/collections/oficina-fluxo-completo.postman_collection.json) |
-| **New Relic Dashboard** | [Oficina Mecânica - Monitoramento](https://one.newrelic.com) |
+
+#### Como subir o ambiente
+
+```bash
+# 1. Provisionar RDS e EKS (repositórios oficina-infra-db e oficina-infra-k8s)
+#    Acionar workflow "Deploy Infraestrutura EKS" → apply no GitHub Actions
+
+# 2. Obter o endereço do LoadBalancer
+aws eks update-kubeconfig --region sa-east-1 --name oficina-cluster
+kubectl get svc -n oficina
+
+# 3. Acessar a API
+http://<EXTERNAL-IP>/swagger-ui.html
+```
 
 ### Tecnologias
 
