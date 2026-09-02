@@ -52,8 +52,8 @@ management:
     export:
       newrelic:
         enabled: ${NEW_RELIC_ENABLED:false}
-        api-key: ${NEW_RELIC_LICENSE_KEY:}
-        account-id: ${NEW_RELIC_ACCOUNT_ID:}
+        api-key: ${NEW_RELIC_LICENSE_KEY:disabled}
+        account-id: ${NEW_RELIC_ACCOUNT_ID:0}
         step: 60s
 
 oficina:
