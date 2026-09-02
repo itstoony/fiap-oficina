@@ -13,6 +13,7 @@ import br.com.fiap.oficina.execucao.application.port.in.OrdemDeServicoPublicUseC
 import br.com.fiap.oficina.execucao.application.port.out.AtendenteLookupPort;
 import br.com.fiap.oficina.execucao.application.port.out.ClienteLookupPort;
 import br.com.fiap.oficina.execucao.application.port.out.EstoquePort;
+import br.com.fiap.oficina.execucao.application.port.out.MetricasPort;
 import br.com.fiap.oficina.execucao.application.port.out.NotificacaoEmailPort;
 import br.com.fiap.oficina.execucao.application.port.out.OrdemDeServicoRepositoryPort;
 import br.com.fiap.oficina.execucao.application.port.out.PecaLookupPort;
@@ -29,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -46,6 +48,7 @@ public class OrdemDeServicoService implements OrdemDeServicoAdminUseCase, OrdemD
     private final PecaLookupPort pecaLookup;
     private final EstoquePort estoque;
     private final NotificacaoEmailPort notificacaoEmail;
+    private final MetricasPort metricas;
 
     // -------------------------------------------------------------------------
     // CONSULTAS
@@ -96,7 +99,10 @@ public class OrdemDeServicoService implements OrdemDeServicoAdminUseCase, OrdemD
                 .observacoes(request.observacoes())
                 .build();
 
-        return toResponse(repositorio.salvar(ordemDeServico));
+        OrdemDeServico salva = repositorio.salvar(ordemDeServico);
+        metricas.registrarOsCriada();
+        metricas.registrarTransicaoStatus(StatusOS.RECEBIDA);
+        return toResponse(salva);
     }
 
     // -------------------------------------------------------------------------
@@ -191,6 +197,7 @@ public class OrdemDeServicoService implements OrdemDeServicoAdminUseCase, OrdemD
     public OrdemDeServicoDTO.Response iniciarDiagnostico(UUID id) {
         OrdemDeServico ordemDeServico = repositorio.buscarPorId(id);
         ordemDeServico.transicionarPara(StatusOS.EM_DIAGNOSTICO);
+        metricas.registrarTransicaoStatus(StatusOS.EM_DIAGNOSTICO);
         return toResponse(repositorio.salvar(ordemDeServico));
     }
 
@@ -199,6 +206,7 @@ public class OrdemDeServicoService implements OrdemDeServicoAdminUseCase, OrdemD
     public OrdemDeServicoDTO.Response enviarOrcamento(UUID id) {
         OrdemDeServico ordemDeServico = repositorio.buscarPorId(id);
         ordemDeServico.transicionarPara(StatusOS.AGUARDANDO_APROVACAO);
+        metricas.registrarTransicaoStatus(StatusOS.AGUARDANDO_APROVACAO);
         OrdemDeServico salva = repositorio.salvar(ordemDeServico);
         try {
             notificacaoEmail.enviarOrcamentoParaAprovacao(
@@ -219,6 +227,7 @@ public class OrdemDeServicoService implements OrdemDeServicoAdminUseCase, OrdemD
         Atendente atendente = atendenteLookup.buscarPorId(request.atendenteId());
         ordemDeServico.setAtendente(atendente);
         ordemDeServico.transicionarPara(StatusOS.EM_EXECUCAO);
+        metricas.registrarTransicaoStatus(StatusOS.EM_EXECUCAO);
         ordemDeServico.getItensPeca().forEach(item ->
                 estoque.baixarEstoque(ordemDeServico.getId(), item.getPeca().getId(), item.getQuantidade()));
         return toResponse(repositorio.salvar(ordemDeServico));
@@ -229,6 +238,11 @@ public class OrdemDeServicoService implements OrdemDeServicoAdminUseCase, OrdemD
     public OrdemDeServicoDTO.Response finalizar(UUID id) {
         OrdemDeServico ordemDeServico = repositorio.buscarPorId(id);
         ordemDeServico.transicionarPara(StatusOS.FINALIZADA);
+        metricas.registrarTransicaoStatus(StatusOS.FINALIZADA);
+        if (ordemDeServico.getDataInicioExecucao() != null && ordemDeServico.getDataFimExecucao() != null) {
+            long segundos = Duration.between(ordemDeServico.getDataInicioExecucao(), ordemDeServico.getDataFimExecucao()).getSeconds();
+            metricas.registrarTempoExecucaoSegundos(segundos);
+        }
         return toResponse(repositorio.salvar(ordemDeServico));
     }
 
@@ -237,6 +251,7 @@ public class OrdemDeServicoService implements OrdemDeServicoAdminUseCase, OrdemD
     public OrdemDeServicoDTO.Response entregar(UUID id) {
         OrdemDeServico ordemDeServico = repositorio.buscarPorId(id);
         ordemDeServico.transicionarPara(StatusOS.ENTREGUE);
+        metricas.registrarTransicaoStatus(StatusOS.ENTREGUE);
         return toResponse(repositorio.salvar(ordemDeServico));
     }
 
@@ -245,6 +260,7 @@ public class OrdemDeServicoService implements OrdemDeServicoAdminUseCase, OrdemD
     public OrdemDeServicoDTO.Response cancelar(UUID id) {
         OrdemDeServico ordemDeServico = repositorio.buscarPorId(id);
         ordemDeServico.transicionarPara(StatusOS.CANCELADA);
+        metricas.registrarTransicaoStatus(StatusOS.CANCELADA);
         ordemDeServico.getItensPeca().forEach(item ->
                 estoque.liberarReserva(item.getPeca().getId(), item.getQuantidade(), ordemDeServico.getId()));
         return toResponse(repositorio.salvar(ordemDeServico));
@@ -259,6 +275,7 @@ public class OrdemDeServicoService implements OrdemDeServicoAdminUseCase, OrdemD
     public OrdemDeServicoDTO.StatusPublicoResponse aprovar(String numero) {
         OrdemDeServico ordemDeServico = repositorio.buscarPorNumero(numero);
         ordemDeServico.transicionarPara(StatusOS.APROVADO);
+        metricas.registrarTransicaoStatus(StatusOS.APROVADO);
         repositorio.salvar(ordemDeServico);
         return toStatusPublicoResponse(ordemDeServico);
     }
@@ -268,6 +285,7 @@ public class OrdemDeServicoService implements OrdemDeServicoAdminUseCase, OrdemD
     public OrdemDeServicoDTO.StatusPublicoResponse recusar(String numero) {
         OrdemDeServico ordemDeServico = repositorio.buscarPorNumero(numero);
         ordemDeServico.transicionarPara(StatusOS.CANCELADA);
+        metricas.registrarTransicaoStatus(StatusOS.CANCELADA);
         ordemDeServico.getItensPeca().forEach(item ->
                 estoque.liberarReserva(item.getPeca().getId(), item.getQuantidade(), ordemDeServico.getId()));
         repositorio.salvar(ordemDeServico);

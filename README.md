@@ -95,7 +95,8 @@ http://<EXTERNAL-IP>/swagger-ui.html
 | AWS EKS | 1.32 | Orquestração Kubernetes |
 | AWS ECR | — | Registry de imagens |
 | GitHub Actions | — | CI/CD |
-| New Relic | — | Monitoramento APM |
+| New Relic | — | Monitoramento APM e métricas customizadas |
+| Micrometer | — | Abstração de métricas (desacoplada do New Relic) |
 
 ### Vídeo de demonstração
 
@@ -309,7 +310,19 @@ O estado `APROVADO` é atingido quando o cliente aprova o orçamento (endpoint p
 | `POST` | `/api/public/ordens/{numero}/aprovar` | Cliente aprova o orçamento |
 | `POST` | `/api/public/ordens/{numero}/recusar` | Cliente recusa o orçamento |
 
-**Testes:** `StatusOSTest` (14) · `OrdemDeServicoServiceTest` (14) · `OrdemDeServicoAdminControllerTest` (8) · `OrdemDeServicoPublicControllerTest` (5)
+**Métricas de OS (Micrometer — desacopladas do New Relic):**
+
+As métricas são publicadas via `MeterRegistry` do Spring Boot Actuator e coletadas automaticamente pelo New Relic APM. O domínio não depende de nenhuma lib de observabilidade — a porta `MetricasPort` isola essa responsabilidade.
+
+| Métrica | Tipo | Descrição |
+|---|---|---|
+| `oficina.os.criadas` | Counter | Total de OS abertas |
+| `oficina.os.transicoes{status=...}` | Counter | Transições por status (ex: `EM_EXECUCAO`, `FINALIZADA`) |
+| `oficina.os.tempo_execucao` | Timer | Tempo entre `EM_EXECUCAO` e `FINALIZADA` |
+
+Acessíveis via `/actuator/metrics/oficina.os.criadas` etc.
+
+**Testes:** `StatusOSTest` (18) · `OrdemDeServicoServiceTest` (16) · `MicrometerMetricasAdapterTest` (3) · `OrdemDeServicoAdminControllerTest` (10) · `OrdemDeServicoPublicControllerTest` (5)
 
 ---
 
@@ -619,7 +632,8 @@ Cobertura mínima configurada: **80%** nas classes de domínio (excluindo DTOs, 
 | Atendimento | `VeiculoControllerTest` | MockMvc | 11 |
 | Atendimento | `AtendenteControllerTest` | MockMvc | 9 |
 | Execução | `StatusOSTest` | Unitário | 18 |
-| Execução | `OrdemDeServicoServiceTest` | Unitário | 15 |
+| Execução | `OrdemDeServicoServiceTest` | Unitário | 16 |
+| Execução | `MicrometerMetricasAdapterTest` | Unitário | 3 |
 | Execução | `OrdemDeServicoAdminControllerTest` | MockMvc | 10 |
 | Execução | `OrdemDeServicoPublicControllerTest` | MockMvc | 5 |
 | Estoque | `PecaServiceTest` | Unitário | 12 |
@@ -629,4 +643,4 @@ Cobertura mínima configurada: **80%** nas classes de domínio (excluindo DTOs, 
 | Administração | `RelatorioServiceTest` | Unitário | 4 |
 | Administração | `RelatorioControllerTest` | MockMvc | 2 |
 | Integração | `OficinaApplicationTests` | Spring | 1 |
-| **Total** | | | **157** |
+| **Total** | | | **160** |
