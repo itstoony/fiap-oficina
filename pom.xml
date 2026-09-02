@@ -131,6 +131,12 @@
             <version>7.4</version>
         </dependency>
 
+        <!-- ===== MÉTRICAS (New Relic via Micrometer) ===== -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-new-relic</artifactId>
+        </dependency>
+
     </dependencies>
 
     <build>
