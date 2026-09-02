@@ -57,6 +57,46 @@ Backend de um sistema integrado de atendimento e execução de serviços de uma 
 | `AWS_ACCESS_KEY_ID` | Credencial AWS |
 | `AWS_SECRET_ACCESS_KEY` | Credencial AWS |
 
+### Deploy e demonstração
+
+> **Nota sobre custos:** A infraestrutura (EKS + RDS) não é mantida permanentemente no ar devido aos custos da AWS (cluster EKS ~$0.10/h, sem free tier). O ambiente é provisionado sob demanda via `terraform apply` no repositório `oficina-infra-k8s` e destruído após uso. Todo o funcionamento do sistema está demonstrado no vídeo abaixo.
+
+| Recurso | URL |
+|---|---|
+| **Vídeo de demonstração** | *(a preencher após gravação)* |
+| **Lambda (CPF auth)** | `https://fpwmtfk2k4.execute-api.sa-east-1.amazonaws.com/Prod/auth/login` |
+| **Documentação arquitetural** | [docs/ARQUITETURA.md](docs/ARQUITETURA.md) |
+| **Postman Collection** | [postman/collections/oficina-fluxo-completo.postman_collection.json](postman/collections/oficina-fluxo-completo.postman_collection.json) |
+
+#### Como subir o ambiente
+
+```bash
+# 1. Provisionar RDS e EKS (repositórios oficina-infra-db e oficina-infra-k8s)
+#    Acionar workflow "Deploy Infraestrutura EKS" → apply no GitHub Actions
+
+# 2. Obter o endereço do LoadBalancer
+aws eks update-kubeconfig --region sa-east-1 --name oficina-cluster
+kubectl get svc -n oficina
+
+# 3. Acessar a API
+http://<EXTERNAL-IP>/swagger-ui.html
+```
+
+### Tecnologias
+
+| Tecnologia | Versão | Uso |
+|---|---|---|
+| Java | 17 | Runtime |
+| Spring Boot | 3.5.3 | Framework principal |
+| Spring Security + JWT | — | Autenticação stateless |
+| Spring Data JPA + Flyway | — | Persistência e migrations |
+| PostgreSQL | 16.9 | Banco de dados (RDS) |
+| Docker | — | Containerização |
+| AWS EKS | 1.32 | Orquestração Kubernetes |
+| AWS ECR | — | Registry de imagens |
+| GitHub Actions | — | CI/CD |
+| New Relic | — | Monitoramento APM |
+
 ### Vídeo de demonstração
 
 > Link do vídeo: *(a preencher após gravação)*
