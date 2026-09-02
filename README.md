@@ -57,6 +57,32 @@ Backend de um sistema integrado de atendimento e execução de serviços de uma 
 | `AWS_ACCESS_KEY_ID` | Credencial AWS |
 | `AWS_SECRET_ACCESS_KEY` | Credencial AWS |
 
+### Deploy ativo
+
+| Recurso | URL |
+|---|---|
+| **API (EKS)** | `http://ab4aa81c4ec494862b0a482b63074250-171925194.sa-east-1.elb.amazonaws.com` |
+| **Swagger UI** | `http://ab4aa81c4ec494862b0a482b63074250-171925194.sa-east-1.elb.amazonaws.com/swagger-ui.html` |
+| **Lambda (CPF auth)** | `https://fpwmtfk2k4.execute-api.sa-east-1.amazonaws.com/Prod/auth/login` |
+| **Documentação arquitetural** | [docs/ARQUITETURA.md](docs/ARQUITETURA.md) |
+| **Postman Collection** | [postman/collections/oficina-fluxo-completo.postman_collection.json](postman/collections/oficina-fluxo-completo.postman_collection.json) |
+| **New Relic Dashboard** | [Oficina Mecânica - Monitoramento](https://one.newrelic.com) |
+
+### Tecnologias
+
+| Tecnologia | Versão | Uso |
+|---|---|---|
+| Java | 17 | Runtime |
+| Spring Boot | 3.5.3 | Framework principal |
+| Spring Security + JWT | — | Autenticação stateless |
+| Spring Data JPA + Flyway | — | Persistência e migrations |
+| PostgreSQL | 16.9 | Banco de dados (RDS) |
+| Docker | — | Containerização |
+| AWS EKS | 1.32 | Orquestração Kubernetes |
+| AWS ECR | — | Registry de imagens |
+| GitHub Actions | — | CI/CD |
+| New Relic | — | Monitoramento APM |
+
 ### Vídeo de demonstração
 
 > Link do vídeo: *(a preencher após gravação)*
