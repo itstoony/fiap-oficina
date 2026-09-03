@@ -398,8 +398,8 @@ O PostgreSQL 16 trouxe melhorias significativas em paralelização de queries, e
 
 **Identificador:** RFC-001
 **Status:** Aprovado
-**Data:** 2024-11-01
-**Autores:** Equipe Oficina Mecânica — FIAP Pós-Tech Fase 3
+**Data:** 2026-08-01
+**Autores:** itstoony - Grupo 231
 
 ---
 
@@ -440,8 +440,8 @@ Os serviços AWS utilizados são:
 
 **Identificador:** RFC-002
 **Status:** Aprovado
-**Data:** 2024-11-05
-**Autores:** Equipe Oficina Mecânica — FIAP Pós-Tech Fase 3
+**Data:** 2026-08-05
+**Autores:** itstoony - Grupo 231
 
 ---
 
@@ -484,8 +484,8 @@ O **mesmo secret JWT** (`OFICINA_JWT_SECRET`) é compartilhado entre a Lambda e 
 
 **Identificador:** RFC-003
 **Status:** Aprovado
-**Data:** 2024-11-03
-**Autores:** Equipe Oficina Mecânica — FIAP Pós-Tech Fase 3
+**Data:** 2026-08-03
+**Autores:** itstoony - Grupo 231
 
 ---
 
@@ -530,7 +530,7 @@ Configurações adotadas:
 
 **Identificador:** ADR-001
 **Status:** Aceito
-**Data:** 2024-09-01 (herdado da Fase 2)
+**Data:** 2026-07-01 (herdado da Fase 2)
 **Deciders:** Equipe Oficina Mecânica
 
 ---
@@ -572,7 +572,7 @@ Os **Ports** são interfaces Java definidas no pacote `application`, implementad
 
 **Identificador:** ADR-002
 **Status:** Aceito
-**Data:** 2024-11-10
+**Data:** 2026-08-10
 **Deciders:** Equipe Oficina Mecânica
 
 ---
@@ -612,7 +612,7 @@ O HPA (Horizontal Pod Autoscaler) está configurado com `minReplicas: 2` e `maxR
 
 **Identificador:** ADR-003
 **Status:** Aceito
-**Data:** 2024-11-10
+**Data:** 2026-08-10
 **Deciders:** Equipe Oficina Mecânica
 
 ---
@@ -647,7 +647,7 @@ Configurar o HPA com:
 
 **Identificador:** ADR-004
 **Status:** Aceito
-**Data:** 2024-11-05
+**Data:** 2026-08-05
 **Deciders:** Equipe Oficina Mecânica
 
 ---
